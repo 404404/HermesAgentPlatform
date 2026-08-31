@@ -1,0 +1,20 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+:root { font-family: 'DM Sans', system-ui, sans-serif; color: #172033; background: #f4f6fb; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+.brand { font-family: 'Space Grotesk', sans-serif; letter-spacing: -.02em; }
+.app-logo { height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 20px; color: #fff; font-weight: 700; font-size: 17px; }
+.app-logo-mark { display: grid; place-items: center; width: 28px; height: 28px; color: #0b1736; background: #8be4d3; border-radius: 9px; font-weight: 800; }
+.page-title { font-family: 'Space Grotesk', sans-serif; margin: 0; font-size: 26px; letter-spacing: -.03em; }
+.page-subtitle { color: #73809a; margin-top: 4px; }
+.stat-card { border: 0; box-shadow: 0 8px 24px rgba(31, 53, 99, .06); }
+.content-card { border: 0; box-shadow: 0 8px 24px rgba(31, 53, 99, .05); }
+.metric-label { color: #77839b; font-size: 13px; }
+.metric-value { font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700; margin-top: 7px; }
+.market-card { height: 100%; border: 1px solid #e8edf7; transition: transform .2s, box-shadow .2s; }
+.market-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(31, 53, 99, .1); }
+.ant-layout-sider { background: #0b1736 !important; }
+.ant-menu-dark { background: transparent !important; }
+.ant-layout-header { border-bottom: 1px solid #e7ebf3; }
+@media (max-width: 760px) { .ant-layout-sider { position: fixed; z-index: 20; height: 100vh; } .page-title { font-size: 22px; } }
