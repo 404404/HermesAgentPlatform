@@ -17,3 +17,8 @@ All routes below are under `/api/v1`, require the local session except login, an
 | Analytics | `GET /usage/overview`, `GET /audit-logs` |
 
 Mutating requests must include the `hep_csrf` cookie value in the `X-CSRF-Token` header. The frontend API client handles this automatically.
+
+
+## Phase 2 routes
+
+Additional route groups cover managed RBAC and effective permissions, Runtime and Profile Templates, model providers and secret references, Skill versions and files, Knowledge documents and bindings, server-side Audit query/export, Risk Events, Approval Center, persistent Settings, Health, Notifications and Quotas. Mutations continue to require the CSRF cookie/header pair. Errors from new endpoints use `error_code` and `message_params` so the UI owns localization.

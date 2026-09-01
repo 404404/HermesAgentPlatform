@@ -105,6 +105,9 @@ func main() {
 	if err := seedDemoData(db, cfg.adminPassword); err != nil {
 		log.Fatal(err)
 	}
+	if err := seedPhase2Data(db, cfg.adminPassword); err != nil {
+		log.Fatal(err)
+	}
 
 	s := &server{
 		db:       db,
@@ -154,6 +157,7 @@ func main() {
 	auth.POST("/knowledge-bases/:id/bindings", s.createKnowledgeBinding)
 	auth.GET("/usage/overview", s.usageOverview)
 	auth.GET("/audit-logs", s.auditLogs)
+	registerPhase2Routes(auth, s)
 
 	log.Printf("HEP API listening on :%s", cfg.port)
 	if err := r.Run(":" + cfg.port); err != nil {
@@ -232,6 +236,9 @@ func applyMigrations(db *sql.DB, dir string) error {
 		}
 		for _, statement := range splitSQL(string(content)) {
 			if _, err := tx.Exec(statement); err != nil {
+				if ignorableSchemaError(err) {
+					continue
+				}
 				tx.Rollback()
 				return fmt.Errorf("migration %s: %w", name, err)
 			}
@@ -336,7 +343,12 @@ func (s *server) login(c *gin.Context) {
 	}
 	_, _ = s.db.Exec("UPDATE users SET last_login_at = UTC_TIMESTAMP() WHERE id = ?", user.ID)
 	s.setCookies(c, token, csrf)
-	s.audit(c, user.ID, "auth.login", "user", user.ID, "global", "success", nil)
+	c.Set("userID", user.ID)
+	if s.isBreakglass(user.ID) {
+		s.auditPhase2(c, "auth.break_glass.login", "user", user.ID, "global", "success", nil)
+	} else {
+		s.audit(c, user.ID, "auth.login", "user", user.ID, "global", "success", nil)
+	}
 	fullUser, fullErr := s.getUser(user.ID)
 	if fullErr == nil {
 		user = fullUser
@@ -489,6 +501,7 @@ func (s *server) createUser(c *gin.Context) {
 		_, _ = s.db.Exec(`INSERT INTO role_bindings (role_id, organization_id, user_id, scope) VALUES (?, ?, ?, 'user')`, roleID, orgID, id)
 	}
 	_, _ = s.db.Exec(`INSERT INTO runtimes (user_id, runtime_id, status, provider, hermes_version, cpu_limit, memory_limit) VALUES (?, ?, 'stopped', 'mock', 'mock-hermes-0.1', '1 CPU', '512Mi')`, id, fmt.Sprintf("mock-runtime-%d", id))
+	s.ensureAutomaticProvisioned(id)
 	s.audit(c, currentUserID(c), "user.create", "user", id, "global", "success", map[string]any{"username": req.Username})
 	v, err := s.getUser(id)
 	if err != nil {
@@ -539,14 +552,15 @@ func (s *server) setUserStatus(c *gin.Context) {
 	var req struct {
 		Status string `json:"status"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil || (req.Status != "active" && req.Status != "disabled") {
-		fail(c, 400, "status must be active or disabled")
+	if err := c.ShouldBindJSON(&req); err != nil || (!map[string]bool{"pending": true, "active": true, "suspended": true, "disabled": true, "archived": true}[req.Status]) {
+		failCode(c, 400, "user.invalid_status", gin.H{"status": req.Status})
 		return
 	}
 	if _, err := s.db.Exec(`UPDATE users SET status=?, updated_at=UTC_TIMESTAMP() WHERE id=?`, req.Status, id); err != nil {
 		fail(c, 400, "could not update status")
 		return
 	}
+	s.orchestrateUserLifecycle(id, req.Status)
 	s.audit(c, currentUserID(c), "user.disable", "user", id, "global", "success", map[string]any{"status": req.Status})
 	v, err := s.getUser(id)
 	if err != nil {
@@ -1050,7 +1064,7 @@ func (s *server) createSkill(c *gin.Context) {
 		return
 	}
 	id, _ := res.LastInsertId()
-	_, _ = s.db.Exec(`INSERT INTO skill_versions (skill_id,version,artifact_hash,status,required_tools,required_network,required_secrets) VALUES (?,?,'pending','draft','[]','[]','[]')`, id, req.Version)
+	_, _ = s.db.Exec(`INSERT INTO skill_versions (skill_id,version,artifact_hash,status,required_tools,required_network,required_secrets) VALUES (?,? ,'pending','draft','[]','[]','[]')`, id, req.Version)
 	s.audit(c, currentUserID(c), "skill.create", "skill", id, "user", "success", nil)
 	c.JSON(201, gin.H{"data": gin.H{"id": id}})
 }
@@ -1074,7 +1088,9 @@ func (s *server) submitSkill(c *gin.Context) {
 		fail(c, 404, "skill not found")
 		return
 	}
-	res, err := s.db.Exec(`INSERT INTO skill_submissions (skill_id,submitted_by,status,notes) VALUES (?,?, 'submitted',?)`, id, currentUserID(c), note)
+	var versionID int64
+	_ = s.db.QueryRow(`SELECT id FROM skill_versions WHERE skill_id=? ORDER BY created_at DESC LIMIT 1`, id).Scan(&versionID)
+	res, err := s.db.Exec(`INSERT INTO skill_submissions (skill_id,skill_version_id,submitted_by,status,notes) VALUES (?,?,?, 'submitted',?)`, id, nullableID(versionID), currentUserID(c), note)
 	if err != nil {
 		fail(c, 400, "could not submit skill")
 		return
@@ -1128,9 +1144,14 @@ func (s *server) reviewSubmission(c *gin.Context) {
 	if req.Decision == "reject" {
 		status = "rejected"
 	}
+	var skillVersionID int64
+	_ = s.db.QueryRow(`SELECT COALESCE(skill_version_id,0) FROM skill_submissions WHERE id=?`, id).Scan(&skillVersionID)
 	if _, err := s.db.Exec(`UPDATE skill_submissions SET status=?,updated_at=UTC_TIMESTAMP() WHERE id=?`, status, id); err != nil {
 		fail(c, 400, "could not review submission")
 		return
+	}
+	if skillVersionID > 0 {
+		_, _ = s.db.Exec("UPDATE skill_versions SET status=? WHERE id=? AND immutable=FALSE", status, skillVersionID)
 	}
 	_, _ = s.db.Exec(`INSERT INTO skill_reviews (submission_id,reviewer_id,decision,comment) VALUES (?,?,?,?)`, id, currentUserID(c), req.Decision, req.Comment)
 	s.audit(c, currentUserID(c), "skill.review", "skill_submission", id, "global", "success", map[string]any{"decision": req.Decision})
@@ -1145,8 +1166,8 @@ func (s *server) publishSubmission(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var skillID int64
-	if err := s.db.QueryRow(`SELECT skill_id FROM skill_submissions WHERE id=? AND status='approved'`, id).Scan(&skillID); err != nil {
+	var skillID, skillVersionID int64
+	if err := s.db.QueryRow(`SELECT skill_id,COALESCE(skill_version_id,0) FROM skill_submissions WHERE id=? AND status='approved'`, id).Scan(&skillID, &skillVersionID); err != nil {
 		fail(c, 409, "submission must be approved before publishing")
 		return
 	}
@@ -1154,7 +1175,11 @@ func (s *server) publishSubmission(c *gin.Context) {
 		fail(c, 500, "could not publish submission")
 		return
 	}
+	if skillVersionID > 0 {
+		_, _ = s.db.Exec("UPDATE skill_versions SET status='published',immutable=TRUE WHERE id=?", skillVersionID)
+	}
 	_, _ = s.db.Exec(`UPDATE skills SET status='published' WHERE id=?`, skillID)
+	s.auditPhase2(c, "skill.publish", "skill", skillID, "global", "success", gin.H{"version_id": skillVersionID})
 	s.audit(c, currentUserID(c), "skill.publish", "skill", skillID, "global", "success", nil)
 	c.JSON(200, gin.H{"data": gin.H{"id": id, "status": "published"}})
 }

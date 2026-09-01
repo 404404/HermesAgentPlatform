@@ -1,3 +1,5 @@
+export type ApiError = Error & { code?: string; params?: Record<string, unknown> }
+
 const API_BASE = import.meta.env.VITE_API_BASE || '/api/v1'
 
 function csrfToken() {
@@ -11,7 +13,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) headers.set('X-CSRF-Token', csrfToken())
   const response = await fetch(`${API_BASE}${path}`, { ...init, headers, credentials: 'include' })
   const payload = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`)
+  if (!response.ok) { const error = new Error(payload.error || payload.error_code || "request_failed") as ApiError; error.code = payload.error_code; error.params = payload.message_params; throw error }
   return payload.data as T
 }
 
@@ -20,6 +22,7 @@ export const api = {
   post: <T>(path: string, body: unknown) => request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
   put: <T>(path: string, body: unknown) => request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  download: async (path: string) => { const response = await fetch(API_BASE + path, { credentials: 'include' }); if (!response.ok) throw new Error("request_failed"); return response.blob() },
   login: (username: string, password: string) => request<User>('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
 }
 
