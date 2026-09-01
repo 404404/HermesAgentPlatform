@@ -11,7 +11,7 @@ func (s *server) listRuntimesV2(c *gin.Context) {
 	if !s.requirePermission(c, "runtime.read") {
 		return
 	}
-	rows, err := s.db.Query(`SELECT r.id,r.user_id,u.display_name,r.runtime_id,r.status,r.provider,r.hermes_version,
+	rows, err := s.db.Query(`SELECT r.id,r.user_id,u.display_name,r.runtime_id,r.status,r.desired_status,r.observed_status,r.provider,r.hermes_version,
 		(SELECT COUNT(*) FROM profiles p WHERE p.user_id=r.user_id),r.cpu_limit,r.memory_limit,r.storage_limit,r.profile_limit,
 		r.max_concurrent_jobs,r.image_version,r.runtime_provider,r.runtime_class,r.network_policy,r.auto_start,r.auto_suspend,
 		r.template_id,r.created_at,r.last_seen FROM runtimes r JOIN users u ON u.id=r.user_id ORDER BY r.created_at DESC`)
@@ -23,12 +23,12 @@ func (s *server) listRuntimesV2(c *gin.Context) {
 	out := []gin.H{}
 	for rows.Next() {
 		var id, uid, profileLimit, jobs int64
-		var user, rid, status, provider, version, cpu, memory, storage, image, runtimeProvider, class, network, created string
+		var user, rid, status, desired, observed, provider, version, cpu, memory, storage, image, runtimeProvider, class, network, created string
 		var autoStart, autoSuspend bool
 		var templateID sql.NullInt64
 		var last sql.NullTime
 		var profiles int
-		if err := rows.Scan(&id, &uid, &user, &rid, &status, &provider, &version, &profiles, &cpu, &memory, &storage, &profileLimit, &jobs, &image, &runtimeProvider, &class, &network, &autoStart, &autoSuspend, &templateID, &created, &last); err != nil {
+		if err := rows.Scan(&id, &uid, &user, &rid, &status, &desired, &observed, &provider, &version, &profiles, &cpu, &memory, &storage, &profileLimit, &jobs, &image, &runtimeProvider, &class, &network, &autoStart, &autoSuspend, &templateID, &created, &last); err != nil {
 			continue
 		}
 		templateValue := any(nil)
@@ -39,7 +39,7 @@ func (s *server) listRuntimesV2(c *gin.Context) {
 		if last.Valid {
 			lastValue = last.Time.UTC().Format(time.RFC3339)
 		}
-		out = append(out, gin.H{"id": id, "user_id": uid, "user": user, "runtime_id": rid, "status": status, "provider": provider, "hermes_version": version, "profile_count": profiles, "cpu_limit": cpu, "memory_limit": memory, "storage_limit": storage, "profile_limit": profileLimit, "max_concurrent_jobs": jobs, "image_version": image, "runtime_provider": runtimeProvider, "runtime_class": class, "network_policy": network, "auto_start": autoStart, "auto_suspend": autoSuspend, "template_id": templateValue, "created_at": created, "last_seen": lastValue})
+		out = append(out, gin.H{"id": id, "user_id": uid, "user": user, "runtime_id": rid, "status": status, "desired_status": desired, "observed_status": observed, "provider": provider, "hermes_version": version, "profile_count": profiles, "cpu_limit": cpu, "memory_limit": memory, "storage_limit": storage, "profile_limit": profileLimit, "max_concurrent_jobs": jobs, "image_version": image, "runtime_provider": runtimeProvider, "runtime_class": class, "network_policy": network, "auto_start": autoStart, "auto_suspend": autoSuspend, "template_id": templateValue, "created_at": created, "last_seen": lastValue})
 	}
 	c.JSON(200, gin.H{"data": out})
 }

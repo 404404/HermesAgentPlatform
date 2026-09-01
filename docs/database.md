@@ -17,3 +17,8 @@ Every usage event carries organization, department, user, profile, session, exec
 ## Phase 2 migration
 
 `backend/migrations/002_phase2_control_plane.sql` evolves the initial schema without rewriting migration 001. It adds `skill_artifacts`, `skill_artifact_files`, `knowledge_documents`, `knowledge_document_versions`, `runtime_templates`, `profile_templates`, `profile_template_bindings`, `model_providers`, `secrets`, `approval_requests`, `approval_steps`, `risk_rules`, `risk_events`, `system_settings`, `resource_change_history`, `quota_policies`, `notifications` and `user_preferences`, and extends runtime, profile, binding and audit records.
+
+
+## Phase 3 domain migration
+
+Migration 004_domain_consolidation.sql evolves the existing Demo schema without rewriting earlier migrations. It adds department codes and runtime policy references, Agent Template version and user bindings, profile template version and assignment sources, desired and observed runtime status, kill-switch metadata, audit category and action labels, profile_assignment_sources, knowledge_items and knowledge_item_versions, executions, execution_events and runtime_events. The storage name profile_templates is retained for compatibility, while the API and product name is Agent Template. Empty databases apply all migrations in lexical order; existing Demo databases apply only the missing migration marker.

@@ -44,3 +44,38 @@ func TestValidRoleScopes(t *testing.T) {
 		t.Fatal("host must not be a role scope")
 	}
 }
+
+func TestSkillPolicyPriority(t *testing.T) {
+	if skillPolicyPriority("blocked") <= skillPolicyPriority("mandatory") {
+		t.Fatal("blocked policy must win")
+	}
+	if skillPolicyPriority("mandatory") <= skillPolicyPriority("explicit") {
+		t.Fatal("mandatory policy must win")
+	}
+}
+
+func TestKnowledgeItemTypes(t *testing.T) {
+	for _, typ := range []string{"background", "qa", "markdown", "procedure"} {
+		if !validKnowledgeItemType(typ) {
+			t.Fatalf("expected knowledge type %s", typ)
+		}
+	}
+	if validKnowledgeItemType("plain_text") {
+		t.Fatal("plain_text must not be a v0.2.1 item type")
+	}
+}
+
+func TestKillSwitchIsCritical(t *testing.T) {
+	risk := runtimeKillSwitchRisk("operator incident")
+	if risk.Level != "critical" || risk.Score != 100 || risk.Reason == "" {
+		t.Fatalf("unexpected kill switch risk: %#v", risk)
+	}
+}
+
+func TestDomainAssignmentScopes(t *testing.T) {
+	for _, scope := range []string{"global", "organization", "department", "user", "profile"} {
+		if !validScope(scope) {
+			t.Fatalf("scope %s should be valid", scope)
+		}
+	}
+}

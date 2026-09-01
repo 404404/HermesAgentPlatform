@@ -255,6 +255,7 @@ func (s *server) assignUserRole(c *gin.Context) {
 		failCode(c, 409, "role.assign_failed", nil)
 		return
 	}
+	s.consolidateManagedAgents(uid)
 	s.auditPhase2(c, "role.assign", "user", uid, req.Scope, "success", gin.H{"role_id": req.RoleID, "role": roleName})
 	c.JSON(201, gin.H{"data": gin.H{"user_id": uid, "role_id": req.RoleID, "role": roleName, "scope": req.Scope}})
 }
@@ -281,6 +282,7 @@ func (s *server) removeUserRole(c *gin.Context) {
 		failCode(c, 400, "role.remove_failed", nil)
 		return
 	}
+	s.consolidateManagedAgents(uid)
 	s.auditPhase2(c, "role.remove", "user", uid, "user", "success", gin.H{"role_id": rid, "role": roleName, "protected": protected})
 	c.JSON(200, gin.H{"data": true})
 }
@@ -719,14 +721,58 @@ func (s *server) updateRuntimeSpec(c *gin.Context) {
 		NetworkPolicy     string `json:"network_policy"`
 		ProfileLimit      int    `json:"profile_limit"`
 		MaxConcurrentJobs int    `json:"max_concurrent_jobs"`
-		AutoStart         bool   `json:"auto_start"`
-		AutoSuspend       bool   `json:"auto_suspend"`
+		AutoStart         *bool  `json:"auto_start"`
+		AutoSuspend       *bool  `json:"auto_suspend"`
 	}
 	if c.ShouldBindJSON(&req) != nil {
 		failCode(c, 400, "runtime.invalid_request", nil)
 		return
 	}
 	before := s.runtimeState(id)
+	if req.TemplateID == 0 {
+		if v, ok := before["template_id"].(int64); ok {
+			req.TemplateID = v
+		}
+	}
+	if req.CPULimit == "" {
+		req.CPULimit, _ = before["cpu_limit"].(string)
+	}
+	if req.MemoryLimit == "" {
+		req.MemoryLimit, _ = before["memory_limit"].(string)
+	}
+	if req.StorageLimit == "" {
+		req.StorageLimit, _ = before["storage_limit"].(string)
+	}
+	if req.ProfileLimit == 0 {
+		if v, ok := before["profile_limit"].(int); ok {
+			req.ProfileLimit = v
+		}
+	}
+	if req.MaxConcurrentJobs == 0 {
+		if v, ok := before["max_concurrent_jobs"].(int); ok {
+			req.MaxConcurrentJobs = v
+		}
+	}
+	if req.ImageVersion == "" {
+		req.ImageVersion, _ = before["image_version"].(string)
+	}
+	if req.RuntimeProvider == "" {
+		req.RuntimeProvider, _ = before["runtime_provider"].(string)
+	}
+	if req.RuntimeClass == "" {
+		req.RuntimeClass, _ = before["runtime_class"].(string)
+	}
+	if req.NetworkPolicy == "" {
+		req.NetworkPolicy, _ = before["network_policy"].(string)
+	}
+	autoStart, _ := before["auto_start"].(bool)
+	autoSuspend, _ := before["auto_suspend"].(bool)
+	if req.AutoStart != nil {
+		autoStart = *req.AutoStart
+	}
+	if req.AutoSuspend != nil {
+		autoSuspend = *req.AutoSuspend
+	}
 	if before["cpu_limit"] != req.CPULimit || before["memory_limit"] != req.MemoryLimit {
 		if !s.isBreakglass(currentUserID(c)) {
 			_, _ = s.createApproval(c, "runtime_resource_increase", "runtime", id, "high", "Runtime resource change requires approval", gin.H{"cpu_limit": req.CPULimit, "memory_limit": req.MemoryLimit})
@@ -734,7 +780,7 @@ func (s *server) updateRuntimeSpec(c *gin.Context) {
 			return
 		}
 	}
-	_, err := s.db.Exec(`UPDATE runtimes SET template_id=?,cpu_limit=?,memory_limit=?,storage_limit=?,profile_limit=?,max_concurrent_jobs=?,image_version=?,runtime_provider=?,runtime_class=?,network_policy=?,auto_start=?,auto_suspend=?,updated_at=UTC_TIMESTAMP() WHERE id=?`, nullableID(req.TemplateID), req.CPULimit, req.MemoryLimit, req.StorageLimit, req.ProfileLimit, req.MaxConcurrentJobs, req.ImageVersion, req.RuntimeProvider, req.RuntimeClass, req.NetworkPolicy, req.AutoStart, req.AutoSuspend, id)
+	_, err := s.db.Exec(`UPDATE runtimes SET template_id=?,cpu_limit=?,memory_limit=?,storage_limit=?,profile_limit=?,max_concurrent_jobs=?,image_version=?,runtime_provider=?,runtime_class=?,network_policy=?,auto_start=?,auto_suspend=?,updated_at=UTC_TIMESTAMP() WHERE id=?`, nullableID(req.TemplateID), req.CPULimit, req.MemoryLimit, req.StorageLimit, req.ProfileLimit, req.MaxConcurrentJobs, req.ImageVersion, req.RuntimeProvider, req.RuntimeClass, req.NetworkPolicy, autoStart, autoSuspend, id)
 	if err != nil {
 		failCode(c, 400, "runtime.update_failed", nil)
 		return
@@ -1605,15 +1651,19 @@ type auditQueryRow struct {
 func (s *server) auditQuery(c *gin.Context) (string, []any) {
 	query := `SELECT a.id,COALESCE(a.actor_user_id,0),COALESCE(u.display_name,''),a.action,a.resource_type,COALESCE(a.resource_id,0),a.scope,a.result,a.ip_address,a.user_agent,a.request_id,a.trace_id,a.metadata,a.created_at,a.risk_level,a.risk_score,a.risk_reason FROM audit_logs a LEFT JOIN users u ON u.id=a.actor_user_id WHERE 1=1`
 	args := []any{}
-	filters := []struct{ key, sql string }{{"actor_id", " AND a.actor_user_id=?"}, {"department_id", " AND u.department_id=?"}, {"action", " AND a.action LIKE ?"}, {"resource_type", " AND a.resource_type=?"}, {"resource_id", " AND a.resource_id=?"}, {"result", " AND a.result=?"}, {"risk_level", " AND a.risk_level=?"}, {"ip_address", " AND a.ip_address=?"}, {"target_user_id", " AND ((a.resource_type='user' AND a.resource_id=?) OR JSON_UNQUOTE(JSON_EXTRACT(a.metadata,'$.target_user_id'))=?)"}, {"runtime_id", " AND ((a.resource_type='runtime' AND a.resource_id=?) OR JSON_UNQUOTE(JSON_EXTRACT(a.metadata,'$.runtime_id'))=?)"}, {"skill_id", " AND ((a.resource_type='skill' AND a.resource_id=?) OR JSON_UNQUOTE(JSON_EXTRACT(a.metadata,'$.skill_id'))=?)"}, {"model_id", " AND ((a.resource_type='model' AND a.resource_id=?) OR JSON_UNQUOTE(JSON_EXTRACT(a.metadata,'$.model_id'))=?)"}}
+	filters := []struct{ key, sql string }{{"actor_id", " AND a.actor_user_id=?"}, {"department_id", " AND u.department_id=?"}, {"category", " AND a.category=?"}, {"action", " AND (a.action LIKE ? OR a.action_label LIKE ?)"}, {"resource_type", " AND a.resource_type=?"}, {"resource_id", " AND a.resource_id=?"}, {"result", " AND a.result=?"}, {"risk_level", " AND a.risk_level=?"}, {"ip_address", " AND a.ip_address=?"}, {"target_user_id", " AND ((a.resource_type='user' AND a.resource_id=?) OR JSON_UNQUOTE(JSON_EXTRACT(a.metadata,'$.target_user_id'))=?)"}, {"runtime_id", " AND ((a.resource_type='runtime' AND a.resource_id=?) OR JSON_UNQUOTE(JSON_EXTRACT(a.metadata,'$.runtime_id'))=?)"}, {"skill_id", " AND ((a.resource_type='skill' AND a.resource_id=?) OR JSON_UNQUOTE(JSON_EXTRACT(a.metadata,'$.skill_id'))=?)"}, {"model_id", " AND ((a.resource_type='model' AND a.resource_id=?) OR JSON_UNQUOTE(JSON_EXTRACT(a.metadata,'$.model_id'))=?)"}}
 	for _, f := range filters {
 		if v := c.Query(f.key); v != "" {
-			if strings.Count(f.sql, "?") == 1 {
+			if f.key == "action" {
 				query += f.sql
-				args = append(args, v)
+				args = append(args, "%"+v+"%", "%"+v+"%")
 			} else {
 				query += f.sql
-				args = append(args, v, v)
+				if strings.Count(f.sql, "?") == 1 {
+					args = append(args, v)
+				} else {
+					args = append(args, v, v)
+				}
 			}
 		}
 	}
@@ -1905,6 +1955,13 @@ func (s *server) decideApproval(c *gin.Context) {
 		}
 		_ = json.Unmarshal([]byte(metadata), &data)
 		_, _ = s.db.Exec("INSERT IGNORE INTO role_bindings(role_id,organization_id,department_id,user_id,profile_id,scope) VALUES(?,1,?,?,?,?,?)", data.RoleID, nullableID(data.DepartmentID), data.TargetUserID, nullableID(data.ProfileID), data.Scope)
+	}
+	if typ == "execution" {
+		if req.Decision == "approved" {
+			_, _ = s.db.Exec("UPDATE executions SET status='completed',started_at=COALESCE(started_at,UTC_TIMESTAMP()),finished_at=UTC_TIMESTAMP(),duration_ms=1250,input_tokens=420,output_tokens=180,cost=0.0024 WHERE approval_request_id=?", id)
+		} else {
+			_, _ = s.db.Exec("UPDATE executions SET status='rejected',finished_at=UTC_TIMESTAMP() WHERE approval_request_id=?", id)
+		}
 	}
 	s.auditPhase2(c, "approval."+req.Decision, "approval_request", id, "global", "success", gin.H{"comment": req.Comment})
 	c.JSON(200, gin.H{"data": gin.H{"id": id, "status": req.Decision}})

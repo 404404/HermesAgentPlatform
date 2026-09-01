@@ -3,6 +3,7 @@ package main
 func (s *server) ensureAutomaticProvisioned(userID int64) {
 	var mode string
 	if s.db.QueryRow("SELECT setting_value FROM system_settings WHERE organization_id=1 AND setting_key='runtime_provisioning'").Scan(&mode) != nil || mode != "Automatic" {
+		s.consolidateManagedAgents(userID)
 		return
 	}
 	var templateID int64
@@ -13,4 +14,5 @@ func (s *server) ensureAutomaticProvisioned(userID int64) {
 		_, _ = s.db.Exec("UPDATE runtimes SET status='running',last_seen=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP() WHERE user_id=?", userID)
 	}
 	s.assignProfileTemplates(userID)
+	s.consolidateManagedAgents(userID)
 }

@@ -120,6 +120,7 @@ func seedPhase2DataImpl(db *sql.DB, password string) error {
 	_ = db.QueryRow("SELECT id FROM runtime_templates WHERE organization_id=1 AND is_default=TRUE LIMIT 1").Scan(&defaultTemplateID)
 	if defaultTemplateID > 0 {
 		_, _ = db.Exec("UPDATE runtimes SET template_id=?,storage_limit='10 GB',profile_limit=3,max_concurrent_jobs=2,image_version='mock-hermes-0.2',runtime_provider='mock',runtime_class='lightweight',network_policy='restricted' WHERE template_id IS NULL", defaultTemplateID)
+		_, _ = db.Exec("UPDATE runtimes SET desired_status=CASE WHEN status IN ('running','stopped','suspended') THEN status ELSE 'running' END,observed_status=CASE WHEN status IN ('running','stopped','suspended') THEN status ELSE 'unknown' END WHERE observed_status='unknown'")
 	}
 
 	var standardModel int64
@@ -131,8 +132,8 @@ func seedPhase2DataImpl(db *sql.DB, password string) error {
 		{"finance-assistant", "Finance Assistant", "Managed finance reporting helper", "standard", `["report-generator"]`, `["Finance Policies"]`},
 	}
 	for _, p := range profileTemplates {
-		if _, err := db.Exec(`INSERT INTO profile_templates(organization_id,name,display_name,description,default_model_id,runtime_class,default_skills,default_knowledge,managed,status,created_by)
-			VALUES(1,?,?,?,?,?,?,?,TRUE,'active',?) ON DUPLICATE KEY UPDATE display_name=VALUES(display_name),description=VALUES(description)`, p.name, p.display, p.description, nullableID(standardModel), p.class, p.skills, p.knowledge, adminID); err != nil {
+		if _, err := db.Exec(`INSERT INTO profile_templates(organization_id,name,display_name,description,default_model_id,runtime_class,default_skills,default_knowledge,skill_policies,managed,status,created_by)
+			VALUES(1,?,?,?,?,?,?,? ,JSON_OBJECT(),TRUE,'active',?) ON DUPLICATE KEY UPDATE display_name=VALUES(display_name),description=VALUES(description)`, p.name, p.display, p.description, nullableID(standardModel), p.class, p.skills, p.knowledge, adminID); err != nil {
 			return err
 		}
 	}

@@ -10,3 +10,8 @@ Runtime records include CPU, memory, storage, profile and concurrency limits, im
 Lifecycle orchestration is kept in the service layer. Suspension, disablement and archival stop the runtime and disable managed Profiles. High-risk resource increases create approval requests for non-break-glass actors.
 
 Production Hermes integration should be asynchronous, idempotent and reconciled through an adapter/outbox; this Demo deliberately stops at a resource record.
+
+
+## v0.2.1 runtime management
+
+Runtime Template contains infrastructure fields only: CPU, memory, storage, profile limit, concurrent jobs, provider, class, network policy and status. Agent behavior belongs to Agent Template and Profile, not Runtime Template. Runtime exposes desired status separately from observed status and records provider events. Resources can be edited from Runtime detail; increases are routed to the approval workflow for ordinary administrators. Start, Stop and Restart are lifecycle controls. Emergency Kill Switch is a separate security action that requires a reason, disables new work, cancels demo executions, creates a Critical Audit event and sends a notification.

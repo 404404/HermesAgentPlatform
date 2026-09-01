@@ -7,3 +7,8 @@ Audit events are append-only application records. Phase 2 records the actor, act
 `risk_events` links high/critical evaluations to their source audit event and supports `open`, `acknowledged`, `resolved` and `false_positive`. The audit query API applies all filters server-side, and Audit Administrator/Break-glass users can export the current filtered result as CSV or JSON. Export itself creates an audit event.
 
 The Demo intentionally does not claim WORM storage, signatures, SIEM delivery or immutable infrastructure.
+
+
+## v0.2.1 execution separation
+
+Execution Logs are persisted in executions with model, skills, tools, runtime, tokens, cost, duration, risk and approval fields. High and critical execution requests become pending Approval Requests; approval decisions update the execution state. Execution risk is not a replacement for Control Plane Audit. Audit category and action label are controlled by backend catalog values, filters are applied server-side, and CSV or JSON export uses the current filter set. Export actions are themselves audited and ordinary users cannot export the global audit stream.

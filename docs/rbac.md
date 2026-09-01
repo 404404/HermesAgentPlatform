@@ -12,3 +12,10 @@ The seeded administration roles are deliberately separated:
 Every protected mutating endpoint checks the effective backend permission. The UI only reflects those capabilities; hiding a menu is not an authorization control. Self-assignment of a protected administrator role is denied. Protected changes from a non-break-glass actor create an Approval Request and are independently reviewable.
 
 User detail exposes effective permissions with `Permission`, `Source Role`, `Scope` and `Source Binding` so administrators can explain access.
+
+
+## v0.2.1 binding and protection rules
+
+Role assignment remains a role_bindings record, never users.role. User detail shows Role, Scope, Source and Assigned At, and Effective Permissions show the source role and binding. Protected administrator role self-elevation is rejected in the backend. System Administrator, Security Administrator and Audit Administrator retain separate permission sets; Break-glass remains an emergency exception and is audited as critical.
+
+Agent Template assignments are additive across Department, Role and explicit User sources. Matching sources are consolidated into one managed Profile and stored in profile_assignment_sources. Managed profiles retain enterprise configuration; personal profiles are user-created. All protected mutations are authorized by backend permissions even when a UI control is hidden.

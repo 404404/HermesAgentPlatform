@@ -108,6 +108,9 @@ func main() {
 	if err := seedPhase2Data(db, cfg.adminPassword); err != nil {
 		log.Fatal(err)
 	}
+	if err := seedPhase3Data(db, cfg.adminPassword); err != nil {
+		log.Fatal(err)
+	}
 
 	s := &server{
 		db:       db,
@@ -158,6 +161,7 @@ func main() {
 	auth.GET("/usage/overview", s.usageOverview)
 	auth.GET("/audit-logs", s.auditLogs)
 	registerPhase2Routes(auth, s)
+	registerPhase3Routes(auth, s)
 
 	log.Printf("HEP API listening on :%s", cfg.port)
 	if err := r.Run(":" + cfg.port); err != nil {
@@ -532,6 +536,7 @@ func (s *server) updateUser(c *gin.Context) {
 		fail(c, 400, "could not update user")
 		return
 	}
+	s.consolidateManagedAgents(id)
 	s.audit(c, currentUserID(c), "user.update", "user", id, "global", "success", nil)
 	v, err := s.getUser(id)
 	if err != nil {
@@ -779,7 +784,7 @@ func (s *server) createProfile(c *gin.Context) {
 		fail(c, 400, "unsupported runtime class")
 		return
 	}
-	res, err := s.db.Exec(`INSERT INTO profiles (user_id,model_id,name,display_name,description,status,runtime_class) VALUES (?,?,?,?,?,'active',?)`, req.UserID, nullableID(req.ModelID), req.Name, req.DisplayName, req.Description, req.RuntimeClass)
+	res, err := s.db.Exec(`INSERT INTO profiles (user_id,model_id,name,display_name,description,status,runtime_class,assignment_sources) VALUES (?,?,?,?,?,'active',?,JSON_ARRAY())`, req.UserID, nullableID(req.ModelID), req.Name, req.DisplayName, req.Description, req.RuntimeClass)
 	if err != nil {
 		fail(c, 400, "could not create profile")
 		return
@@ -1543,7 +1548,7 @@ func seedDemoData(db *sql.DB, password string) error {
 	for _, p := range profiles {
 		var uid int64
 		_ = db.QueryRow(`SELECT id FROM users WHERE username=?`, p.user).Scan(&uid)
-		_, err = db.Exec(`INSERT INTO profiles(user_id,model_id,name,display_name,description,status,runtime_class) VALUES (?,?,?,?,?,'active','shared-user') ON DUPLICATE KEY UPDATE display_name=VALUES(display_name)`, uid, p.model, p.name, p.display, p.desc)
+		_, err = db.Exec(`INSERT INTO profiles(user_id,model_id,name,display_name,description,status,runtime_class,assignment_sources) VALUES (?,?,?,?,?,'active','shared-user',JSON_ARRAY()) ON DUPLICATE KEY UPDATE display_name=VALUES(display_name)`, uid, p.model, p.name, p.display, p.desc)
 		if err != nil {
 			return err
 		}

@@ -22,3 +22,20 @@ Mutating requests must include the `hep_csrf` cookie value in the `X-CSRF-Token`
 ## Phase 2 routes
 
 Additional route groups cover managed RBAC and effective permissions, Runtime and Profile Templates, model providers and secret references, Skill versions and files, Knowledge documents and bindings, server-side Audit query/export, Risk Events, Approval Center, persistent Settings, Health, Notifications and Quotas. Mutations continue to require the CSRF cookie/header pair. Errors from new endpoints use `error_code` and `message_params` so the UI owns localization.
+
+
+## v0.2.1 consolidated routes
+
+| Area | Routes |
+| --- | --- |
+| Agent Templates | GET/POST/PUT /agent-templates, GET /agent-templates/:id, POST status and assignments, DELETE assignments, GET instances |
+| Profiles | GET /profiles/:id/effective-configuration, GET assignment-sources |
+| Users | GET summary/activity/effective-permissions and POST reconcile; existing role assign/remove remains backend checked |
+| Departments | POST /departments/manage, GET/PUT /departments/:id/detail, POST status, DELETE /departments/:id/managed |
+| Runtime | GET detail/effective-skills/executions/events, POST control and kill-switch; existing PUT /runtimes/:id edits resources and may create approval |
+| Knowledge | GET/POST/PUT items, publish, versions, consumers, bindings and DELETE binding |
+| Execution | GET/POST /executions and GET /executions/:id; high or critical requests create Approval Requests |
+| Audit | GET /audit-logs/v2, GET /audit-catalog and backend CSV/JSON export using the same server-side filters |
+| Dashboard | GET /dashboard/v3 |
+
+The routes continue to use the session and CSRF middleware. Mutations return structured error codes where implemented, allowing the single frontend i18n layer to localize user-facing text.
