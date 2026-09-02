@@ -132,6 +132,10 @@ func main() {
 	auth.GET("/dashboard", s.dashboard)
 	auth.GET("/users", s.listUsers)
 	auth.POST("/users", s.createUser)
+	auth.POST("/users/import/validate", s.validateUserImport)
+	auth.POST("/users/import/confirm", s.confirmUserImport)
+	auth.POST("/users/batch", s.batchUsers)
+	auth.GET("/users/export", s.exportUsers)
 	auth.PUT("/users/:id", s.updateUser)
 	auth.POST("/users/:id/status", s.setUserStatus)
 	auth.GET("/departments/tree", s.departmentTree)
@@ -439,36 +443,10 @@ func (s *server) listUsers(c *gin.Context) {
 	if !s.requirePermission(c, "user.read") {
 		return
 	}
-	rows, err := s.db.Query(`SELECT u.id, u.username, u.display_name, u.email, u.status, COALESCE(d.name, ''),
-		COALESCE(GROUP_CONCAT(DISTINCT r.name ORDER BY r.name SEPARATOR ','), ''),
-		(SELECT COUNT(*) FROM profiles p WHERE p.user_id=u.id), COALESCE(rt.status, 'not_created'), u.last_login_at, u.created_at
-		FROM users u LEFT JOIN departments d ON d.id=u.department_id
-		LEFT JOIN role_bindings rb ON (rb.user_id=u.id OR (rb.user_id IS NULL AND rb.organization_id=u.organization_id))
-		LEFT JOIN roles r ON r.id=rb.role_id LEFT JOIN runtimes rt ON rt.user_id=u.id
-		GROUP BY u.id ORDER BY u.created_at DESC`)
+	users, err := s.filteredUserRows(c)
 	if err != nil {
-		fail(c, 500, "could not load users")
+		failCode(c, 500, "users.load_failed", nil)
 		return
-	}
-	defer rows.Close()
-	users := []userView{}
-	for rows.Next() {
-		var v userView
-		var roles string
-		var lastLogin sql.NullTime
-		if err := rows.Scan(&v.ID, &v.Username, &v.DisplayName, &v.Email, &v.Status, &v.Department, &roles, &v.ProfileCount, &v.Runtime, &lastLogin, &v.CreatedAt); err != nil {
-			fail(c, 500, "could not read users")
-			return
-		}
-		v.Roles = []string{}
-		if roles != "" {
-			v.Roles = strings.Split(roles, ",")
-		}
-		if lastLogin.Valid {
-			x := lastLogin.Time.UTC().Format(time.RFC3339)
-			v.LastLoginAt = &x
-		}
-		users = append(users, v)
 	}
 	c.JSON(200, gin.H{"data": users})
 }
