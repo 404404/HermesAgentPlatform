@@ -79,3 +79,31 @@ func TestDomainAssignmentScopes(t *testing.T) {
 		}
 	}
 }
+
+func TestUserCSVValidationAndRedaction(t *testing.T) {
+	content := `username,display_name,email,password,department
+new.user,New User,new.user.com,ChangeMe-2026!,R&D
+`
+	rows, errors, err := parseUserCSV(content)
+	if err != nil || len(errors) != 0 || len(rows) != 1 {
+		t.Fatalf("unexpected csv parse: rows=%d errors=%d err=%v", len(rows), len(errors), err)
+	}
+	if rows[0].Password == "" {
+		t.Fatal("parser must retain the password for server-side hashing")
+	}
+	redacted := safeImportRows(rows)
+	if redacted[0].Password != "" || redacted[0].Username != rows[0].Username {
+		t.Fatal("preview rows must redact password only")
+	}
+}
+
+func TestUserCSVRejectsDuplicateAndShortPassword(t *testing.T) {
+	content := `username,display_name,email,password,department
+new.user,New User,new.user.com,short,R&D
+new.user,New User 2,new2.com,ChangeMe-2026!,R&D
+`
+	rows, errors, err := parseUserCSV(content)
+	if err != nil || len(rows) != 0 || len(errors) != 2 {
+		t.Fatalf("expected two invalid rows, rows=%d errors=%d err=%v", len(rows), len(errors), err)
+	}
+}

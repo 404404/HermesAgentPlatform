@@ -25,3 +25,13 @@ Activity is a compact business history such as login or profile creation. Execut
 ## Future adapter boundary
 
 Hermes Adapter will translate the effective Profile configuration into Hermes-native provider and profile configuration. Runtime Provider will provision and reconcile User Runtime resources. Knowledge Provider will index enterprise Knowledge separately from Hermes personal memory. Model Gateway and Secret Provider remain interfaces. All are Mock Providers in v0.2.1.
+
+## v0.2.2 relationship consolidation
+
+The product domain uses one vocabulary: Agent Template defines model, Skills, Knowledge and managed policy; Agent Profile is a concrete User-owned Hermes Profile; Runtime Template defines infrastructure policy only; User Runtime is the per-user runtime boundary that contains one or more Profiles. Profile Templates remains only as the compatible storage table name.
+
+The source of truth for relationships is the backend binding data. A User receives scoped Role Bindings, Department membership, additive Agent Template assignments and one Runtime. A managed Profile is deduplicated by user and template, while profile_assignment_sources explains every Department, Role or explicit User source. Runtime policy bindings are separate from Agent Template bindings.
+
+Effective rules are centralized in the service layer: Runtime Template resolution is Explicit User > Role > Department > Organization Default, with binding_priority and an explicit conflict result for equal-priority different templates. Agent Template matches are additive and deduplicated. Skill policy precedence is blocked > mandatory > explicit > default > optional. Knowledge access is the union of allowed Organization, Department, Role, Profile and Agent Template bindings.
+
+Activity is a business summary, Execution Log records Agent work, Approval Request is a governance gate, and Audit Log records Control Plane operations. These are separate APIs and tables even when they are linked by metadata.

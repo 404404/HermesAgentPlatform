@@ -33,6 +33,7 @@ func seedPhase2DataImpl(db *sql.DB, password string) error {
 		{"System Administrator", "Users, departments, runtimes, profiles and system configuration"},
 		{"Security Administrator", "Roles, permissions, security policy and high-risk approvals"},
 		{"Audit Administrator", "Audit logs, risk events, export and administrator activity review"},
+		{"Developer", "Developer agent profile and execution capabilities"},
 	}
 	for _, role := range roles {
 		if _, err := db.Exec("INSERT INTO roles(organization_id,name,description,is_system) VALUES(1,?,?,TRUE) ON DUPLICATE KEY UPDATE description=VALUES(description)", role.name, role.description); err != nil {
@@ -150,6 +151,14 @@ func seedPhase2DataImpl(db *sql.DB, password string) error {
 		if tid > 0 {
 			_, _ = db.Exec("INSERT IGNORE INTO profile_template_bindings(template_id,scope,organization_id,department_id,created_by) VALUES(?,'department',1,?,?)", tid, nullableID(b.dept), adminID)
 		}
+	}
+
+	var developerRole int64
+	_ = db.QueryRow("SELECT id FROM roles WHERE name=? LIMIT 1", "Developer").Scan(&developerRole)
+	var developerTemplate int64
+	_ = db.QueryRow("SELECT id FROM profile_templates WHERE name=? LIMIT 1", "developer-assistant").Scan(&developerTemplate)
+	if developerTemplate > 0 && developerRole > 0 {
+		_, _ = db.Exec("INSERT INTO profile_template_bindings(template_id,scope,organization_id,role_id,created_by) SELECT ?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM profile_template_bindings WHERE template_id=? AND scope=? AND role_id=?)", developerTemplate, "role", 1, developerRole, adminID, developerTemplate, "role", developerRole)
 	}
 
 	secretID, err := phase2EnsureSecret(db, "openai-api-key", "api_key", "organization", "not_configured")

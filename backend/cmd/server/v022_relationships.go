@@ -14,6 +14,64 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+func (s *server) profileSourceRolesData(userID int64) []gin.H {
+	rows, err := s.db.Query(`SELECT DISTINCT r.id,r.name FROM role_bindings rb JOIN roles r ON r.id=rb.role_id WHERE rb.user_id=? ORDER BY r.name`, userID)
+	if err != nil {
+		return []gin.H{}
+	}
+	defer rows.Close()
+	out := []gin.H{}
+	for rows.Next() {
+		var id int64
+		var name string
+		if rows.Scan(&id, &name) == nil {
+			out = append(out, gin.H{"id": id, "name": name, "source": "User Role"})
+		}
+	}
+	return out
+}
+
+func (s *server) agentTemplateInstanceNames(templateID int64) []string {
+	rows, err := s.db.Query("SELECT CONCAT(u.username, \x27 / \x27, p.display_name) FROM profiles p JOIN users u ON u.id=p.user_id WHERE p.source_template_id=? ORDER BY u.username,p.display_name", templateID)
+	if err != nil {
+		return []string{}
+	}
+	defer rows.Close()
+	values := []string{}
+	for rows.Next() {
+		var value string
+		if rows.Scan(&value) == nil && value != "" {
+			values = append(values, value)
+		}
+	}
+	return values
+}
+
+func (s *server) agentTemplateRelationNames(templateID int64, kind string) []string {
+	queries := map[string]string{
+		"role":       `SELECT DISTINCT r.name FROM profile_template_bindings b JOIN roles r ON r.id=b.role_id WHERE b.template_id=? AND b.scope='role' ORDER BY r.name`,
+		"department": `SELECT DISTINCT d.name FROM profile_template_bindings b JOIN departments d ON d.id=b.department_id WHERE b.template_id=? AND b.scope='department' ORDER BY d.name`,
+		"user":       `SELECT DISTINCT u.display_name FROM profile_template_bindings b JOIN users u ON u.id=b.user_id WHERE b.template_id=? AND b.scope='user' ORDER BY u.display_name`,
+	}
+	query, ok := queries[kind]
+	if !ok {
+		return []string{}
+	}
+	rows, err := s.db.Query(query, templateID)
+	if err != nil {
+		return []string{}
+	}
+	defer rows.Close()
+	values := []string{}
+	for rows.Next() {
+		var value string
+		if rows.Scan(&value) == nil && value != "" {
+			values = append(values, value)
+		}
+	}
+	return values
+}
+
 // v0.2.2 relationship endpoints keep RoleBinding and the existing template
 // tables as the source of truth. Runtime policy bindings are intentionally
 // separate from Agent Template bindings: one describes infrastructure, the
@@ -39,8 +97,13 @@ func (s *server) runtimeTemplateBindingsData(templateID int64) []gin.H {
 }
 
 func (s *server) listRuntimeTemplateBindings(c *gin.Context) {
-	if !s.requirePermission(c, "runtime_template.read") { return }
-	id, ok := paramID(c, "id"); if !ok { return }
+	if !s.requirePermission(c, "runtime_template.read") {
+		return
+	}
+	id, ok := paramID(c, "id")
+	if !ok {
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"data": s.runtimeTemplateBindingsData(id)})
 }
 
@@ -76,6 +139,45 @@ func (s *server) addRuntimeTemplateBinding(c *gin.Context) {
 	}
 	s.auditControlPlane(c, "runtime_template.binding.create", "Runtime Policy Binding Created", "Runtime", "runtime_template", id, "success", gin.H{"binding_type": req.BindingType, "binding_priority": req.Priority}, nil)
 	c.JSON(http.StatusCreated, gin.H{"data": s.runtimeTemplateBindingsData(id)})
+}
+
+func (s *server) updateRuntimeTemplateBinding(c *gin.Context) {
+	if !s.requirePermission(c, "runtime_template.manage") {
+		return
+	}
+	templateID, ok := paramID(c, "id")
+	if !ok {
+		return
+	}
+	bindingID, ok := paramID(c, "binding_id")
+	if !ok {
+		return
+	}
+	var ownerID int64
+	if s.db.QueryRow("SELECT runtime_template_id FROM runtime_template_bindings WHERE id=?", bindingID).Scan(&ownerID) != nil || ownerID != templateID {
+		failCode(c, http.StatusNotFound, "runtime_template.binding_not_found", nil)
+		return
+	}
+	var req struct {
+		Priority int    `json:"binding_priority"`
+		Policy   string `json:"policy"`
+	}
+	if c.ShouldBindJSON(&req) != nil {
+		failCode(c, http.StatusBadRequest, "runtime_template.binding_invalid", nil)
+		return
+	}
+	if req.Priority < 0 {
+		req.Priority = 0
+	}
+	if req.Policy == "" {
+		req.Policy = "default"
+	}
+	if _, err := s.db.Exec("UPDATE runtime_template_bindings SET binding_priority=?,policy=? WHERE id=? AND runtime_template_id=?", req.Priority, req.Policy, bindingID, templateID); err != nil {
+		failCode(c, http.StatusBadRequest, "runtime_template.binding_failed", nil)
+		return
+	}
+	s.auditControlPlane(c, "runtime_template.binding.update", "Runtime Policy Binding Updated", "Runtime", "runtime_template", templateID, "success", gin.H{"binding_id": bindingID, "binding_priority": req.Priority}, nil)
+	c.JSON(http.StatusOK, gin.H{"data": true})
 }
 
 func (s *server) deleteRuntimeTemplateBinding(c *gin.Context) {
@@ -216,9 +318,9 @@ func (s *server) addRoleMembers(c *gin.Context) {
 		return
 	}
 	var req struct {
-		UserIDs     []int64 `json:"user_ids"`
-		Scope       string  `json:"scope"`
-		DepartmentID int64  `json:"department_id"`
+		UserIDs      []int64 `json:"user_ids"`
+		Scope        string  `json:"scope"`
+		DepartmentID int64   `json:"department_id"`
 	}
 	if c.ShouldBindJSON(&req) != nil || len(req.UserIDs) == 0 || !validScope(req.Scope) {
 		if req.Scope == "" {
@@ -299,7 +401,7 @@ type importUserRow struct {
 	Username     string `json:"username"`
 	DisplayName  string `json:"display_name"`
 	Email        string `json:"email"`
-	Password     string `json:"password"`
+	Password     string `json:"password,omitempty"`
 	Department   string `json:"department"`
 	DepartmentID int64  `json:"department_id"`
 	Error        string `json:"error,omitempty"`
@@ -377,11 +479,22 @@ func (s *server) validateImportRows(rows []importUserRow) ([]importUserRow, []gi
 	return valid, errors
 }
 
+func safeImportRows(rows []importUserRow) []importUserRow {
+	result := make([]importUserRow, 0, len(rows))
+	for _, row := range rows {
+		row.Password = ""
+		result = append(result, row)
+	}
+	return result
+}
+
 func (s *server) validateUserImport(c *gin.Context) {
 	if !s.requirePermission(c, "user.create") {
 		return
 	}
-	var req struct{ Content string `json:"content"` }
+	var req struct {
+		Content string `json:"content"`
+	}
 	if c.ShouldBindJSON(&req) != nil || strings.TrimSpace(req.Content) == "" {
 		failCode(c, http.StatusBadRequest, "user.import_invalid", nil)
 		return
@@ -392,7 +505,8 @@ func (s *server) validateUserImport(c *gin.Context) {
 		return
 	}
 	valid, dbErrors := s.validateImportRows(rows)
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"valid_rows": valid, "invalid_rows": append(parseErrors, dbErrors...), "valid_count": len(valid), "invalid_count": len(parseErrors) + len(dbErrors)}})
+	safeValid := safeImportRows(valid)
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"valid_rows": safeValid, "invalid_rows": append(parseErrors, dbErrors...), "valid_count": len(valid), "invalid_count": len(parseErrors) + len(dbErrors)}})
 }
 
 func (s *server) createImportedUser(x importUserRow, actor int64) (int64, error) {
@@ -419,12 +533,28 @@ func (s *server) confirmUserImport(c *gin.Context) {
 	if !s.requirePermission(c, "user.create") {
 		return
 	}
-	var req struct{ Rows []importUserRow `json:"rows"` }
-	if c.ShouldBindJSON(&req) != nil || len(req.Rows) == 0 {
+	var req struct {
+		Content string          `json:"content"`
+		Rows    []importUserRow `json:"rows"`
+	}
+	if c.ShouldBindJSON(&req) != nil {
 		failCode(c, http.StatusBadRequest, "user.import_invalid", nil)
 		return
 	}
-	valid, errors := s.validateImportRows(req.Rows)
+	rows := req.Rows
+	if strings.TrimSpace(req.Content) != "" {
+		parsed, parseErrors, err := parseUserCSV(req.Content)
+		if err != nil || len(parseErrors) > 0 {
+			failCode(c, http.StatusBadRequest, "user.import_invalid", gin.H{"invalid_count": len(parseErrors)})
+			return
+		}
+		rows = parsed
+	}
+	if len(rows) == 0 {
+		failCode(c, http.StatusBadRequest, "user.import_invalid", nil)
+		return
+	}
+	valid, errors := s.validateImportRows(rows)
 	if len(errors) > 0 {
 		c.JSON(http.StatusConflict, gin.H{"error_code": "user.import_has_errors", "message_params": gin.H{"invalid_count": len(errors)}, "data": gin.H{"invalid_rows": errors}})
 		return

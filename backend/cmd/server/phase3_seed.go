@@ -46,6 +46,9 @@ func seedPhase3Data(db *sql.DB, password string) error {
 	if err := grant("Break-glass Super Administrator", permissions...); err != nil {
 		return err
 	}
+	if err := grant("Developer", "agent_template.read", "execution.read", "execution.create", "profile.read", "profile.create"); err != nil {
+		return err
+	}
 	if err := grant("Standard User", "execution.read", "execution.create", "agent_template.read"); err != nil {
 		return err
 	}
@@ -68,6 +71,12 @@ func seedPhase3Data(db *sql.DB, password string) error {
 	_ = db.QueryRow("SELECT id FROM runtime_templates WHERE is_default=TRUE AND status='active' LIMIT 1").Scan(&defaultRuntime)
 	if defaultRuntime > 0 {
 		_, _ = db.Exec("UPDATE departments SET default_runtime_template_id=COALESCE(default_runtime_template_id,?)", defaultRuntime)
+	}
+
+	var developerRole int64
+	_ = db.QueryRow("SELECT id FROM roles WHERE name=? LIMIT 1", "Developer").Scan(&developerRole)
+	if defaultRuntime > 0 && developerRole > 0 {
+		_, _ = db.Exec("INSERT IGNORE INTO runtime_template_bindings(runtime_template_id,binding_type,role_id,binding_priority,policy) VALUES(?, ?, ?, ?, ?)", defaultRuntime, "role", developerRole, 50, "default")
 	}
 
 	// Backfill template policy metadata. The JSON is a policy map keyed by the

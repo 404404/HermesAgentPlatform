@@ -265,9 +265,17 @@ func applyMigrations(db *sql.DB, dir string) error {
 
 func splitSQL(sqlText string) []string {
 	var result []string
-	for _, part := range strings.Split(sqlText, ";") {
+	var withoutComments strings.Builder
+	for _, line := range strings.Split(sqlText, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "--") {
+			continue
+		}
+		withoutComments.WriteString(line)
+		withoutComments.WriteByte(10)
+	}
+	for _, part := range strings.Split(withoutComments.String(), ";") {
 		statement := strings.TrimSpace(part)
-		if statement != "" && !strings.HasPrefix(statement, "--") {
+		if statement != "" {
 			result = append(result, statement)
 		}
 	}

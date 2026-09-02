@@ -17,6 +17,16 @@ import (
 // the storage name remains unchanged for upgrade compatibility.
 func registerPhase3Routes(auth *gin.RouterGroup, s *server) {
 	auth.DELETE("/knowledge-bases/:id/bindings/:binding_id", s.deleteKnowledgeBindingV21)
+	// Consolidated Knowledge Item API used by the v0.2.2 management drawer.
+	auth.GET("/knowledge-bases/:id/items", s.listKnowledgeItems)
+	auth.POST("/knowledge-bases/:id/items", s.createKnowledgeItem)
+	auth.GET("/knowledge-bases/:id/consumers", s.knowledgeConsumers)
+	auth.GET("/knowledge-items/:id", s.knowledgeItemDetail)
+	auth.PUT("/knowledge-items/:id", s.updateKnowledgeItem)
+	auth.POST("/knowledge-items/:id/publish", s.publishKnowledgeItem)
+	auth.DELETE("/knowledge-items/:id", s.deleteKnowledgeItem)
+	auth.GET("/knowledge-items/:id/versions", s.knowledgeItemVersions)
+	auth.GET("/knowledge-item-versions/:id", s.knowledgeItemVersion)
 	auth.GET("/agent-templates", s.listAgentTemplates)
 	auth.POST("/agent-templates", s.createAgentTemplate)
 	auth.GET("/agent-templates/:id", s.agentTemplateDetail)
@@ -128,13 +138,13 @@ func (s *server) departmentDetailV21(c *gin.Context) {
 	}
 	var parent, manager, template sql.NullInt64
 	var name, code, desc, status, created, updated string
-	var members, children, templates, bindings int
-	err := s.db.QueryRow(`SELECT d.name,d.code,d.description,d.status,d.parent_id,d.manager_user_id,d.default_runtime_template_id,d.created_at,d.updated_at,(SELECT COUNT(*) FROM users WHERE department_id=d.id),(SELECT COUNT(*) FROM departments WHERE parent_id=d.id),(SELECT COUNT(*) FROM profile_template_bindings WHERE department_id=d.id),(SELECT COUNT(*) FROM knowledge_bindings WHERE department_id=d.id) FROM departments d WHERE d.id=?`, id).Scan(&name, &code, &desc, &status, &parent, &manager, &template, &created, &updated, &members, &children, &templates, &bindings)
+	var members, children, templates, bindings, runtimePolicies int
+	err := s.db.QueryRow(`SELECT d.name,d.code,d.description,d.status,d.parent_id,d.manager_user_id,d.default_runtime_template_id,d.created_at,d.updated_at,(SELECT COUNT(*) FROM users WHERE department_id=d.id),(SELECT COUNT(*) FROM departments WHERE parent_id=d.id),(SELECT COUNT(*) FROM profile_template_bindings WHERE department_id=d.id),(SELECT COUNT(*) FROM knowledge_bindings WHERE department_id=d.id),(SELECT COUNT(*) FROM runtime_template_bindings WHERE department_id=d.id) FROM departments d WHERE d.id=?`, id).Scan(&name, &code, &desc, &status, &parent, &manager, &template, &created, &updated, &members, &children, &templates, &bindings, &runtimePolicies)
 	if err != nil {
 		failCode(c, 404, "department.not_found", nil)
 		return
 	}
-	c.JSON(200, gin.H{"data": gin.H{"id": id, "name": name, "code": code, "description": desc, "status": status, "parent_id": nullableSQLID(parent), "manager_user_id": nullableSQLID(manager), "default_runtime_template_id": nullableSQLID(template), "created_at": created, "updated_at": updated, "member_count": members, "child_count": children, "agent_template_assignment_count": templates, "knowledge_binding_count": bindings, "tabs": []string{"Overview", "Members", "Roles", "Agent Templates", "Knowledge", "Runtime Policy", "Activity"}}})
+	c.JSON(200, gin.H{"data": gin.H{"id": id, "name": name, "code": code, "description": desc, "status": status, "parent_id": nullableSQLID(parent), "manager_user_id": nullableSQLID(manager), "default_runtime_template_id": nullableSQLID(template), "created_at": created, "updated_at": updated, "member_count": members, "child_count": children, "agent_template_assignment_count": templates, "knowledge_binding_count": bindings, "runtime_policy_count": runtimePolicies, "tabs": []string{"Overview", "Members", "Roles", "Agent Templates", "Knowledge", "Runtime Policy", "Activity"}}})
 }
 
 func nullableSQLID(v sql.NullInt64) any {
@@ -215,13 +225,14 @@ func (s *server) deleteDepartmentV21(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var children, members, templates, bindings int
+	var children, members, templates, bindings, runtimePolicies int
 	_ = s.db.QueryRow("SELECT COUNT(*) FROM departments WHERE parent_id=?", id).Scan(&children)
 	_ = s.db.QueryRow("SELECT COUNT(*) FROM users WHERE department_id=?", id).Scan(&members)
 	_ = s.db.QueryRow("SELECT COUNT(*) FROM profile_template_bindings WHERE department_id=?", id).Scan(&templates)
 	_ = s.db.QueryRow("SELECT COUNT(*) FROM knowledge_bindings WHERE department_id=?", id).Scan(&bindings)
-	if children+members+templates+bindings > 0 {
-		failCode(c, 409, "department.delete_blocked", gin.H{"children": children, "members": members, "agent_template_assignments": templates, "knowledge_bindings": bindings})
+	_ = s.db.QueryRow("SELECT COUNT(*) FROM runtime_template_bindings WHERE department_id=?", id).Scan(&runtimePolicies)
+	if children+members+templates+bindings+runtimePolicies > 0 {
+		failCode(c, 409, "department.delete_blocked", gin.H{"children": children, "members": members, "agent_template_assignments": templates, "knowledge_bindings": bindings, "runtime_policies": runtimePolicies})
 		return
 	}
 	if _, err := s.db.Exec("DELETE FROM departments WHERE id=?", id); err != nil {
@@ -568,7 +579,7 @@ func (s *server) effectiveConfigurationData(profileID int64) gin.H {
 	_ = s.db.QueryRow("SELECT organization_id,COALESCE(department_id,0) FROM users WHERE id=?", uid).Scan(&orgID, &deptID)
 	skills := s.effectiveSkills(profileID, uid, orgID, deptID, templateID, templateName)
 	knowledge := s.effectiveKnowledgeSources(profileID, uid, orgID, deptID, templateID, templateName)
-	return gin.H{"id": profileID, "profile_type": profileType, "profile_name": profileName, "template": gin.H{"id": nullableSQLID(templateID), "name": templateName, "version": s.templateVersion(templateID)}, "model": model, "skills": skills, "knowledge": knowledge}
+	return gin.H{"id": profileID, "profile_type": profileType, "profile_name": profileName, "template": gin.H{"id": nullableSQLID(templateID), "name": templateName, "version": s.templateVersion(templateID)}, "source_roles": s.profileSourceRolesData(uid), "model": model, "skills": skills, "knowledge": knowledge}
 }
 func (s *server) templateVersion(id sql.NullInt64) any {
 	if !id.Valid {
@@ -706,16 +717,21 @@ func (s *server) auditLogsV21(c *gin.Context) {
 	}
 	query := `SELECT a.id,COALESCE(a.actor_user_id,0),COALESCE(u.display_name,''),a.category,a.action,a.action_label,a.resource_type,COALESCE(a.resource_id,0),COALESCE(a.profile_id,0),a.result,a.ip_address,a.request_id,a.trace_id,a.metadata,a.risk_level,a.risk_score,a.risk_reason,a.created_at FROM audit_logs a LEFT JOIN users u ON u.id=a.actor_user_id WHERE 1=1`
 	args := []any{}
-	filters := map[string]string{"category": "a.category=?", "action": "(a.action=? OR a.action_label=?)", "actor_id": "a.actor_user_id=?", "department_id": "u.department_id=?", "resource_type": "a.resource_type=?", "resource_id": "a.resource_id=?", "result": "a.result=?", "risk_level": "a.risk_level=?", "ip_address": "a.ip_address=?", "profile_id": "a.profile_id=?", "request_id": "a.request_id=?"}
+	filters := map[string]string{"category": "a.category=?", "action": "(a.action=? OR a.action_label=?)", "actor_id": "a.actor_user_id=?", "department_id": "u.department_id=?", "resource_type": "a.resource_type=?", "resource_id": "a.resource_id=?", "result": "a.result=?", "risk_level": "a.risk_level=?", "ip_address": "a.ip_address=?", "profile_id": "a.profile_id=?", "runtime_id": "((a.resource_type=\x27runtime\x27 AND a.resource_id=?) OR JSON_UNQUOTE(JSON_EXTRACT(a.metadata,\x27$.runtime_id\x27))=?)", "skill_id": "((a.resource_type=\x27skill\x27 AND a.resource_id=?) OR JSON_UNQUOTE(JSON_EXTRACT(a.metadata,\x27$.skill_id\x27))=?)", "model_id": "((a.resource_type=\x27model\x27 AND a.resource_id=?) OR JSON_UNQUOTE(JSON_EXTRACT(a.metadata,\x27$.model_id\x27))=?)", "request_id": "a.request_id=?"}
 	for key, expr := range filters {
 		if v := c.Query(key); v != "" {
 			query += " AND " + expr
-			if key == "action" {
+			if key == "action" || strings.HasSuffix(key, "_id") && (key == "runtime_id" || key == "skill_id" || key == "model_id") {
 				args = append(args, v, v)
 			} else {
 				args = append(args, v)
 			}
 		}
+	}
+	if v := c.Query("search"); v != "" {
+		query += " AND (a.action LIKE ? OR a.action_label LIKE ? OR a.resource_type LIKE ? OR u.display_name LIKE ?)"
+		like := "%" + v + "%"
+		args = append(args, like, like, like, like)
 	}
 	if v := c.Query("time_from"); v != "" {
 		query += " AND a.created_at>=?"
@@ -745,20 +761,35 @@ func (s *server) auditCatalog(c *gin.Context) {
 	if !s.requirePermission(c, "audit.read") {
 		return
 	}
-	c.JSON(200, gin.H{"data": gin.H{"categories": []string{"Identity & Access", "Organization", "Roles & Permissions", "Agent Profiles", "Runtime", "Models", "Skills", "Knowledge", "Approvals", "System Settings", "Security", "Exports"}, "actions": gin.H{"Roles & Permissions": []string{"Role Created", "Role Updated", "Role Deleted", "Role Assigned", "Role Removed", "Permission Added", "Permission Removed"}, "Runtime": []string{"Runtime Created", "Runtime Started", "Runtime Stopped", "Runtime Restarted", "Runtime Resized", "Kill Switch Activated"}, "Knowledge": []string{"Knowledge Created", "Knowledge Updated", "Knowledge Binding Changed", "Knowledge Item Created", "Knowledge Item Updated", "Knowledge Item Deleted"}}}})
+	actions := gin.H{
+		"Identity & Access":   []string{"User Created", "User Updated", "User Status Changed", "Role Assigned", "Role Removed"},
+		"Organization":        []string{"Department Created", "Department Updated", "Department Disabled", "Department Deleted", "User Moved Department"},
+		"Roles & Permissions": []string{"Role Created", "Role Updated", "Role Deleted", "Role Assigned", "Role Removed", "Permission Added", "Permission Removed"},
+		"Agent Profiles":      []string{"Profile Created", "Profile Updated", "Agent Template Assigned", "Profile Reconciled"},
+		"Runtime":             []string{"Runtime Created", "Runtime Started", "Runtime Stopped", "Runtime Restarted", "Runtime Resized", "Kill Switch Activated"},
+		"Models":              []string{"Model Provider Created", "Model Provider Updated", "Model Policy Changed"},
+		"Skills":              []string{"Skill Created", "Skill Updated", "Skill Submitted", "Skill Published", "Skill Artifact Updated"},
+		"Knowledge":           []string{"Knowledge Created", "Knowledge Updated", "Knowledge Binding Changed", "Knowledge Item Created", "Knowledge Item Updated", "Knowledge Item Deleted"},
+		"Approvals":           []string{"Approval Requested", "Approval Approved", "Approval Rejected", "Approval Cancelled"},
+		"System Settings":     []string{"Settings Updated"},
+		"Security":            []string{"Kill Switch Activated", "Role Elevation Denied", "Critical Secret Operation"},
+		"Exports":             []string{"Audit Exported"},
+	}
+	c.JSON(200, gin.H{"data": gin.H{"categories": []string{"Identity & Access", "Organization", "Roles & Permissions", "Agent Profiles", "Runtime", "Models", "Skills", "Knowledge", "Approvals", "System Settings", "Security", "Exports"}, "actions": actions}})
 }
 func (s *server) dashboardV21(c *gin.Context) {
 	if !s.requirePermission(c, "dashboard.read") {
 		return
 	}
-	var total, active, high, pending, errors, tokens int64
+	var total, active, high, pending, errors, tokens, skillReviews int64
 	_ = s.db.QueryRow("SELECT COUNT(*) FROM users").Scan(&total)
 	_ = s.db.QueryRow("SELECT COUNT(*) FROM users WHERE status='active'").Scan(&active)
 	_ = s.db.QueryRow("SELECT COUNT(*) FROM executions WHERE risk_level IN ('high','critical')").Scan(&high)
 	_ = s.db.QueryRow("SELECT COUNT(*) FROM approval_requests WHERE status='pending'").Scan(&pending)
+	_ = s.db.QueryRow("SELECT COUNT(*) FROM skill_submissions WHERE status IN ('submitted','pending')").Scan(&skillReviews)
 	_ = s.db.QueryRow("SELECT COUNT(*) FROM runtimes WHERE observed_status IN ('error','degraded') OR status IN ('error','failed')").Scan(&errors)
 	_ = s.db.QueryRow("SELECT COALESCE(SUM(input_tokens+output_tokens),0) FROM executions WHERE created_at>=UTC_DATE()").Scan(&tokens)
-	c.JSON(200, gin.H{"data": gin.H{"total_users": total, "active_users": active, "high_critical_executions": high, "pending_approvals": pending, "runtime_errors": errors, "token_today": tokens, "attention_required": gin.H{"critical_executions": s.countExecutionsByRisk("critical"), "high_risk_executions": s.countExecutionsByRisk("high"), "pending_approvals": pending, "runtime_failures": errors}, "platform_health": gin.H{"database": "healthy", "runtime_provider": "healthy", "hermes_adapter": "unknown", "model_gateway": "unknown", "knowledge_provider": "healthy", "secret_provider": "unknown"}}})
+	c.JSON(200, gin.H{"data": gin.H{"total_users": total, "active_users": active, "high_critical_executions": high, "pending_approvals": pending, "runtime_errors": errors, "token_today": tokens, "attention_required": gin.H{"critical_executions": s.countExecutionsByRisk("critical"), "high_risk_executions": s.countExecutionsByRisk("high"), "pending_approvals": pending, "runtime_failures": errors, "pending_skill_reviews": skillReviews, "budget_warnings": 0}, "platform_health": gin.H{"database": "healthy", "runtime_provider": "healthy", "hermes_adapter": "unknown", "model_gateway": "unknown", "knowledge_provider": "healthy", "secret_provider": "unknown"}}})
 }
 func (s *server) countExecutionsByRisk(level string) int64 {
 	var n int64

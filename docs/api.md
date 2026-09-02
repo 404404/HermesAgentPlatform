@@ -39,3 +39,8 @@ Additional route groups cover managed RBAC and effective permissions, Runtime an
 | Dashboard | GET /dashboard/v3 |
 
 The routes continue to use the session and CSRF middleware. Mutations return structured error codes where implemented, allowing the single frontend i18n layer to localize user-facing text.
+## v0.2.2 management routes
+
+The consolidated UI uses `GET /users` with q, department_id, role_id, status, runtime_status and template_id filters. User management also provides `POST /users/import/validate`, `POST /users/import/confirm`, `POST /users/batch` and `GET /users/export`. Role membership uses `GET/POST /roles/:id/members` and `DELETE /roles/:id/members/:binding_id`. Runtime policy uses `GET/POST/PUT/DELETE /runtime-templates/:id/bindings...`. Knowledge Binding responses include target IDs for dependency navigation.
+
+`GET /audit-logs/v2` and `/audit-logs/export` share server-side filters including time range and Runtime, Skill and Model dimensions. `GET /audit-catalog` supplies category and action choices. Mutating routes continue to require session authorization and CSRF protection.

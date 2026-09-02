@@ -91,6 +91,7 @@ func registerPhase2Routes(auth *gin.RouterGroup, s *server) {
 	auth.POST("/runtime-templates/:id/status", s.setRuntimeTemplateStatus)
 	auth.GET("/runtime-templates/:id/bindings", s.listRuntimeTemplateBindings)
 	auth.POST("/runtime-templates/:id/bindings", s.addRuntimeTemplateBinding)
+	auth.PUT("/runtime-templates/:id/bindings/:binding_id", s.updateRuntimeTemplateBinding)
 	auth.DELETE("/runtime-templates/:id/bindings/:binding_id", s.deleteRuntimeTemplateBinding)
 	auth.GET("/users/:id/runtime-template-resolution", s.userRuntimeResolution)
 	auth.PUT("/runtimes/:id", s.updateRuntimeSpec)
@@ -535,7 +536,7 @@ func (s *server) listRuntimeTemplates(c *gin.Context) {
 		var name, desc, cpu, mem, storage, image, provider, class, network, status, created, updated string
 		var start, suspend, def bool
 		if rows.Scan(&id, &name, &desc, &cpu, &mem, &storage, &pl, &mj, &image, &provider, &class, &network, &start, &suspend, &def, &status, &created, &updated) == nil {
-			out = append(out, gin.H{"id": id, "name": name, "description": desc, "cpu_limit": cpu, "memory_limit": mem, "storage_limit": storage, "profile_limit": pl, "max_concurrent_jobs": mj, "image_version": image, "runtime_provider": provider, "runtime_class": class, "network_policy": network, "auto_start": start, "auto_suspend": suspend, "is_default": def, "status": status, "created_at": created, "updated_at": updated, "bindings": s.runtimeTemplateBindingsData(id)} )
+			out = append(out, gin.H{"id": id, "name": name, "description": desc, "cpu_limit": cpu, "memory_limit": mem, "storage_limit": storage, "profile_limit": pl, "max_concurrent_jobs": mj, "image_version": image, "runtime_provider": provider, "runtime_class": class, "network_policy": network, "auto_start": start, "auto_suspend": suspend, "is_default": def, "status": status, "created_at": created, "updated_at": updated, "bindings": s.runtimeTemplateBindingsData(id)})
 		}
 	}
 	c.JSON(200, gin.H{"data": out})
@@ -1566,7 +1567,7 @@ func (s *server) listKnowledgeBindings(c *gin.Context) {
 	if !ok {
 		return
 	}
-	rows, err := s.db.Query(`SELECT b.id,b.binding_type,b.scope,COALESCE(o.name,''),COALESCE(d.name,''),COALESCE(r.name,''),COALESCE(p.display_name,''),COALESCE(pt.id,0),COALESCE(pt.display_name,''),COALESCE(u.display_name,''),b.policy,b.created_at FROM knowledge_bindings b LEFT JOIN organizations o ON o.id=b.organization_id LEFT JOIN departments d ON d.id=b.department_id LEFT JOIN roles r ON r.id=b.role_id LEFT JOIN profiles p ON p.id=b.profile_id LEFT JOIN profile_templates pt ON pt.id=b.agent_template_id LEFT JOIN users u ON u.id=b.created_by WHERE b.knowledge_base_id=? ORDER BY b.created_at DESC`, id)
+	rows, err := s.db.Query(`SELECT b.id,b.binding_type,b.binding_type,COALESCE(o.id,0),COALESCE(o.name,'') ,COALESCE(d.id,0),COALESCE(d.name,''),COALESCE(r.id,0),COALESCE(r.name,''),COALESCE(p.id,0),COALESCE(p.display_name,''),COALESCE(pt.id,0),COALESCE(pt.display_name,''),COALESCE(u.display_name,''),b.policy,b.created_at FROM knowledge_bindings b LEFT JOIN organizations o ON o.id=b.organization_id LEFT JOIN departments d ON d.id=b.department_id LEFT JOIN roles r ON r.id=b.role_id LEFT JOIN profiles p ON p.id=b.profile_id LEFT JOIN profile_templates pt ON pt.id=b.agent_template_id LEFT JOIN users u ON u.id=b.created_by WHERE b.knowledge_base_id=? ORDER BY b.created_at DESC`, id)
 	if err != nil {
 		failCode(c, 500, "knowledge.bindings_failed", nil)
 		return
@@ -1574,10 +1575,10 @@ func (s *server) listKnowledgeBindings(c *gin.Context) {
 	defer rows.Close()
 	out := []gin.H{}
 	for rows.Next() {
-		var bid, templateID int64
+		var bid, orgID, deptID, roleID, profileID, templateID int64
 		var typ, scope, org, dept, role, profile, templateName, creator, policy, created string
-		if rows.Scan(&bid, &typ, &scope, &org, &dept, &role, &profile, &templateID, &templateName, &creator, &policy, &created) == nil {
-			out = append(out, gin.H{"id": bid, "binding_type": typ, "scope": scope, "organization": org, "department": dept, "role": role, "profile": profile, "agent_template_id": templateID, "agent_template": templateName, "created_by": creator, "policy": policy, "created_at": created})
+		if rows.Scan(&bid, &typ, &scope, &orgID, &org, &deptID, &dept, &roleID, &role, &profileID, &profile, &templateID, &templateName, &creator, &policy, &created) == nil {
+			out = append(out, gin.H{"id": bid, "binding_type": typ, "scope": scope, "organization_id": orgID, "organization": org, "department_id": deptID, "department": dept, "role_id": roleID, "role": role, "profile_id": profileID, "profile": profile, "agent_template_id": templateID, "agent_template": templateName, "created_by": creator, "policy": policy, "created_at": created})
 		}
 	}
 	c.JSON(200, gin.H{"data": out})
@@ -1591,14 +1592,14 @@ func (s *server) createKnowledgeBindingV2(c *gin.Context) {
 		return
 	}
 	var req struct {
-		BindingType    string `json:"binding_type"`
-		Scope          string `json:"scope"`
-		Policy         string `json:"policy"`
-		OrganizationID int64  `json:"organization_id"`
-		DepartmentID   int64  `json:"department_id"`
-		RoleID         int64  `json:"role_id"`
-		ProfileID      int64  `json:"profile_id"`
-		AgentTemplateID int64 `json:"agent_template_id"`
+		BindingType     string `json:"binding_type"`
+		Scope           string `json:"scope"`
+		Policy          string `json:"policy"`
+		OrganizationID  int64  `json:"organization_id"`
+		DepartmentID    int64  `json:"department_id"`
+		RoleID          int64  `json:"role_id"`
+		ProfileID       int64  `json:"profile_id"`
+		AgentTemplateID int64  `json:"agent_template_id"`
 	}
 	if c.ShouldBindJSON(&req) != nil || req.BindingType == "" {
 		failCode(c, 400, "knowledge.binding_invalid", nil)
@@ -1610,7 +1611,7 @@ func (s *server) createKnowledgeBindingV2(c *gin.Context) {
 	if req.Policy == "" {
 		req.Policy = "allow"
 	}
-	_, err := s.db.Exec("INSERT INTO knowledge_bindings(knowledge_base_id,binding_type,organization_id,department_id,role_id,profile_id,agent_template_id,scope,policy,created_by) VALUES(?,?,?,?,?,?,?,?,?,?)", id, req.BindingType, nullableID(req.OrganizationID), nullableID(req.DepartmentID), nullableID(req.RoleID), nullableID(req.ProfileID), nullableID(req.AgentTemplateID), req.Scope, req.Policy, currentUserID(c))
+	_, err := s.db.Exec("INSERT INTO knowledge_bindings(knowledge_base_id,binding_type,organization_id,department_id,role_id,profile_id,agent_template_id,policy,created_by) VALUES(?,?,?,?,?,?,?,?,?)", id, req.BindingType, nullableID(req.OrganizationID), nullableID(req.DepartmentID), nullableID(req.RoleID), nullableID(req.ProfileID), nullableID(req.AgentTemplateID), req.Policy, currentUserID(c))
 	if err != nil {
 		failCode(c, 400, "knowledge.binding_failed", nil)
 		return

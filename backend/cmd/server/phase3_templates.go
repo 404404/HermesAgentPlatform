@@ -82,7 +82,7 @@ func (s *server) listAgentTemplates(c *gin.Context) {
 		out = append(out, gin.H{"id": id, "name": name, "display_name": display, "description": description,
 			"default_model_id": model, "default_skills": phase3JSON(skills), "default_knowledge": phase3JSON(knowledge),
 			"skill_policies": phase3JSON(policies), "managed": managed, "status": status, "template_version": version,
-			"assignment_count": assignments, "instance_count": instances, "created_at": created, "updated_at": updated})
+			"assignment_count": assignments, "instance_count": instances, "associated_roles": s.agentTemplateRelationNames(id, "role"), "associated_departments": s.agentTemplateRelationNames(id, "department"), "associated_users": s.agentTemplateRelationNames(id, "user"), "instance_names": s.agentTemplateInstanceNames(id), "created_at": created, "updated_at": updated})
 	}
 	c.JSON(200, gin.H{"data": out})
 }
@@ -107,7 +107,7 @@ func (s *server) agentTemplateDetail(c *gin.Context) {
 	c.JSON(200, gin.H{"data": gin.H{"id": id, "name": name, "display_name": display, "description": description,
 		"default_model_id": model, "default_skills": phase3JSON(skills), "default_knowledge": phase3JSON(knowledge),
 		"skill_policies": phase3JSON(policies), "managed": managed, "status": status, "template_version": version,
-		"assignments": assignments, "instances": instances, "created_at": created, "updated_at": updated}})
+		"assignments": assignments, "instances": instances, "associated_roles": s.agentTemplateRelationNames(id, "role"), "associated_departments": s.agentTemplateRelationNames(id, "department"), "associated_users": s.agentTemplateRelationNames(id, "user"), "instance_names": s.agentTemplateInstanceNames(id), "created_at": created, "updated_at": updated}})
 }
 
 func (s *server) createAgentTemplate(c *gin.Context) {
