@@ -19,3 +19,8 @@ Every main list has loading, error with retry-capable context and empty states w
 ## Responsive targets
 
 Desktop layouts are checked at 1440px, 1280px and 1024px. Settings uses a three-column grid on wide screens, two columns at medium widths and one column when space is constrained. Desktop information density remains the primary design target.
+
+
+## v0.3 surfaces
+
+The single session lands in Workspace. Administrative roles can switch surfaces from the user menu; ordinary users do not see the switch and the backend denies Admin Console routes. Workspace navigation owns Chat, My Agents, Resources, Connections and Account; Platform Health and Notifications remain dashboard/header affordances. Global Refresh lives in the sticky header and dispatches a shared refresh event.

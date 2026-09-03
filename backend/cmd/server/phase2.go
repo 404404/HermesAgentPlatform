@@ -938,7 +938,7 @@ func (s *server) listModelProviders(c *gin.Context) {
 	if !s.requirePermission(c, "model_provider.read") {
 		return
 	}
-	rows, err := s.db.Query(`SELECT mp.id,mp.name,mp.type,mp.mode,mp.base_url,mp.auth_type,CASE WHEN mp.secret_reference_id IS NULL THEN 'not_configured' ELSE 'configured' END,mp.status,mp.description,mp.created_at,mp.updated_at FROM model_providers mp WHERE mp.organization_id=1 ORDER BY mp.name`)
+	rows, err := s.db.Query(`SELECT mp.id,mp.name,mp.type,mp.mode,mp.base_url,mp.auth_type,CASE WHEN mp.secret_reference_id IS NULL THEN 'not_configured' ELSE 'configured' END,mp.status,mp.description,mp.health_status,mp.last_tested_at,mp.last_sync_at,mp.created_at,mp.updated_at FROM model_providers mp WHERE mp.organization_id=1 ORDER BY mp.name`)
 	if err != nil {
 		failCode(c, 500, "providers.load_failed", nil)
 		return
@@ -947,9 +947,10 @@ func (s *server) listModelProviders(c *gin.Context) {
 	out := []gin.H{}
 	for rows.Next() {
 		var id int64
-		var n, t, m, url, auth, secret, status, d, created, updated string
-		if rows.Scan(&id, &n, &t, &m, &url, &auth, &secret, &status, &d, &created, &updated) == nil {
-			out = append(out, gin.H{"id": id, "name": n, "type": t, "mode": m, "base_url": url, "auth_type": auth, "secret_status": secret, "status": status, "description": d, "created_at": created, "updated_at": updated})
+		var n, t, m, url, auth, secret, status, d, health, created, updated string
+		var lastTested, lastSync sql.NullTime
+		if rows.Scan(&id, &n, &t, &m, &url, &auth, &secret, &status, &d, &health, &lastTested, &lastSync, &created, &updated) == nil {
+			out = append(out, gin.H{"id": id, "name": n, "type": t, "mode": m, "base_url": url, "auth_type": auth, "secret_status": secret, "status": status, "description": d, "health_status": health, "last_tested_at": nullableTime(lastTested), "last_sync_at": nullableTime(lastSync), "created_at": created, "updated_at": updated})
 		}
 	}
 	c.JSON(200, gin.H{"data": out})

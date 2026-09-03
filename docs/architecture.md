@@ -20,9 +20,6 @@ Gin was chosen for compact middleware and route grouping. The backend uses `data
 Phase 2 adds persistent governance domains for versioned Skill artifacts, Knowledge documents and versions, Runtime and Profile Templates, model provider and secret references, approvals, quotas, notifications, Settings, risk events and configuration change history. The React control plane keeps the existing visual language while adding a single en-US and zh-CN i18n layer. Mock providers remain the runtime, Hermes, Knowledge, notification and secret integration boundaries.
 
 
-## Phase 2 control-plane increment
-
-Phase 2 adds persistent governance domains for versioned Skill artifacts, Knowledge documents and versions, Runtime and Profile Templates, model provider and secret references, approvals, quotas, notifications, Settings, risk events and configuration change history. The React control plane keeps the existing visual language while adding a single en-US and zh-CN i18n layer. Mock providers remain the runtime, Hermes, Knowledge, notification and secret integration boundaries.
 
 
 ## v0.2.1 consolidated domain
@@ -35,3 +32,10 @@ The service layer computes additive Agent Template matches and Effective Configu
 The service layer is the only place that resolves cross-domain relationships. Organization & Users, Roles, Agent Templates, Knowledge Bases and Runtime Management consume the same backend binding records, so a change made from either side is visible after the next API read. The frontend uses URL query state for the selected department and list filters where supported, shared EntityMultiSelect and RelationTags for relationship editing and display, and sticky header/sidebar scrolling for desktop administration.
 
 The `demo` branch remains a Control Plane Demo. MockRuntimeProvider, MockKnowledgeProvider, Hermes Adapter, Model Gateway and Secret Provider keep explicit boundaries. No handler opens a Docker Socket or writes a Hermes runtime. A future integration should add asynchronous reconciliation and idempotent outbox processing behind these interfaces.
+
+
+## v0.3 workspace and infrastructure foundation
+
+All accounts authenticate through the same local session. The default landing surface is Workspace; Admin Console access is both UI-guarded and backend-authorized by administrative role. Workspace resource APIs use the session user as their scope and expose no impersonation route. MockChatProvider, MockScheduler, MockRuntimeHostProvider, MockModelProvider, MockKnowledgeProvider and MockSecretProvider keep integrations replaceable.
+
+Runtime Hosts hold non-secret inventory and credential references. No TCP Docker endpoint, host socket, privileged container or real Hermes runtime is introduced by v0.3. Provider Models bridge Model Providers and logical Models, while slot and self-service policies remain database-backed Control Plane policy.

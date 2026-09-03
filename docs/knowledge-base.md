@@ -15,3 +15,8 @@ MockKnowledgeProvider is called on publish and represents indexing only. There i
 ## v0.2.2 dependency navigation
 
 Knowledge Binding supports Organization, Department, Role, Profile and Agent Template targets. Binding responses include target IDs as well as display names, allowing the Detail view to link to Organization & Users, Role Detail, Profile Detail and Agent Template Detail without maintaining duplicate frontend relationships. Content remains Background, Q&A, Markdown and Procedure, with draft, publish, preview and version history behavior. Effective Consumers are calculated from current backend relationships.
+
+
+## v0.3 Workspace knowledge
+
+Workspace Knowledge is calculated from the current user's effective Agent Profiles and the organization/departments/roles/profile bindings. It is read-only in the user surface; administration continues to manage Knowledge Base content, bindings and versions. This remains separate from Hermes personal memory and uses MockKnowledgeProvider.

@@ -35,3 +35,10 @@ The source of truth for relationships is the backend binding data. A User receiv
 Effective rules are centralized in the service layer: Runtime Template resolution is Explicit User > Role > Department > Organization Default, with binding_priority and an explicit conflict result for equal-priority different templates. Agent Template matches are additive and deduplicated. Skill policy precedence is blocked > mandatory > explicit > default > optional. Knowledge access is the union of allowed Organization, Department, Role, Profile and Agent Template bindings.
 
 Activity is a business summary, Execution Log records Agent work, Approval Request is a governance gate, and Audit Log records Control Plane operations. These are separate APIs and tables even when they are linked by metadata.
+
+
+## v0.3 unified workspace
+
+HEP uses one authenticated session and two presentation surfaces: Workspace for every user and Admin Console for administrative roles. Workspace APIs are scoped to the session user and do not support impersonation. Chat persistence is represented by conversations and messages and uses MockChatProvider until a Hermes adapter is introduced.
+
+The model catalog separates logical Models, Model Providers and Provider Models. Model Slot Policies reserve the Hermes auxiliary slots without coupling the Control Plane to provider secrets or real model calls. Runtime Hosts and MockScheduler are infrastructure foundations and do not change the User Runtime/Profile boundary.

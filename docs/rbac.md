@@ -24,3 +24,8 @@ Agent Template assignments are additive across Department, Role and explicit Use
 Role membership is always stored in `role_bindings`; there is no user role field. Role Detail and User Detail read and write the same binding domain. Binding scope remains global, organization, department, user or profile and is displayed with source and assignment time. Protected administrator role changes are backend checked, self elevation is denied and high-risk changes can create Approval Requests.
 
 The three administrative roles remain separate: System Administrator handles identity, organization, Runtime and basic configuration; Security Administrator handles permissions, policy and high-risk approval; Audit Administrator handles Audit and export. Break-glass is an emergency exception and is audited at critical risk.
+
+
+## v0.3 access surfaces
+
+One local session opens Workspace for every account. Admin Console access is checked in the backend by administrative role; hiding a menu item is not the authorization boundary. Ordinary users can use only session-scoped me routes and cannot access existing administrative handlers through a crafted URL. Business seed users are admin, user01 and user02; internal security and audit accounts are marked system accounts.

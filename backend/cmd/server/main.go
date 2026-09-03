@@ -29,6 +29,7 @@ type config struct {
 	port          string
 	migrationsDir string
 	adminPassword string
+	userPassword  string
 	cookieSecure  bool
 	allowedOrigin string
 }
@@ -90,6 +91,7 @@ func main() {
 		port:          env("PORT", "8080"),
 		migrationsDir: env("MIGRATIONS_DIR", "./migrations"),
 		adminPassword: env("SEED_ADMIN_PASSWORD", "ChangeMe-Admin-2026!"),
+		userPassword:  env("HEP_DEMO_USER_PASSWORD", "ChangeMe-User-2026!"),
 		cookieSecure:  envBool("COOKIE_SECURE", false),
 		allowedOrigin: env("ALLOWED_ORIGIN", "http://localhost:18080"),
 	}
@@ -109,6 +111,9 @@ func main() {
 		log.Fatal(err)
 	}
 	if err := seedPhase3Data(db, cfg.adminPassword); err != nil {
+		log.Fatal(err)
+	}
+	if err := seedV03Data(db, cfg.adminPassword, cfg.userPassword); err != nil {
 		log.Fatal(err)
 	}
 
@@ -166,6 +171,7 @@ func main() {
 	auth.GET("/audit-logs", s.auditLogs)
 	registerPhase2Routes(auth, s)
 	registerPhase3Routes(auth, s)
+	registerV03Routes(auth, s)
 
 	log.Printf("HEP API listening on :%s", cfg.port)
 	if err := r.Run(":" + cfg.port); err != nil {
@@ -929,7 +935,7 @@ func (s *server) listModels(c *gin.Context) {
 	if !s.requirePermission(c, "profile.model.select") {
 		return
 	}
-	rows, err := s.db.Query(`SELECT id,name,display_name,provider,upstream_model,status,description,cost_class,data_classification,user_selectable,created_at,updated_at FROM models ORDER BY name`)
+	rows, err := s.db.Query(`SELECT m.id,m.name,m.display_name,m.provider,m.upstream_model,m.status,m.description,m.cost_class,m.data_classification,m.user_selectable,m.provider_id,m.provider_model_id,COALESCE(mp.name,''),COALESCE(pm.display_name,''),m.created_at,m.updated_at FROM models m LEFT JOIN model_providers mp ON mp.id=m.provider_id LEFT JOIN provider_models pm ON pm.id=m.provider_model_id ORDER BY m.name`)
 	if err != nil {
 		fail(c, 500, "could not load models")
 		return
@@ -938,13 +944,14 @@ func (s *server) listModels(c *gin.Context) {
 	out := []gin.H{}
 	for rows.Next() {
 		var id int64
-		var name, display, provider, upstream, status, description, cost, data, created, updated string
+		var name, display, provider, upstream, status, description, cost, data, providerName, providerModelDisplay, created, updated string
+		var providerID, providerModelID sql.NullInt64
 		var selectable bool
-		if err := rows.Scan(&id, &name, &display, &provider, &upstream, &status, &description, &cost, &data, &selectable, &created, &updated); err != nil {
+		if err := rows.Scan(&id, &name, &display, &provider, &upstream, &status, &description, &cost, &data, &selectable, &providerID, &providerModelID, &providerName, &providerModelDisplay, &created, &updated); err != nil {
 			fail(c, 500, "could not read models")
 			return
 		}
-		out = append(out, gin.H{"id": id, "name": name, "display_name": display, "provider": provider, "upstream_model": upstream, "status": status, "description": description, "cost_class": cost, "data_classification": data, "user_selectable": selectable, "created_at": created, "updated_at": updated})
+		out = append(out, gin.H{"id": id, "name": name, "display_name": display, "provider": provider, "upstream_model": upstream, "status": status, "description": description, "cost_class": cost, "data_classification": data, "user_selectable": selectable, "provider_id": nullableJSONInt(providerID), "provider_model_id": nullableJSONInt(providerModelID), "provider_name": providerName, "provider_model_display": providerModelDisplay, "created_at": created, "updated_at": updated})
 	}
 	c.JSON(200, gin.H{"data": out})
 }
@@ -962,12 +969,14 @@ func (s *server) createModel(c *gin.Context) {
 		CostClass          string `json:"cost_class"`
 		DataClassification string `json:"data_classification"`
 		UserSelectable     bool   `json:"user_selectable"`
+		ProviderID         int64  `json:"provider_id"`
+		ProviderModelID    int64  `json:"provider_model_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil || req.Name == "" || req.DisplayName == "" {
 		fail(c, 400, "name and display_name are required")
 		return
 	}
-	res, err := s.db.Exec(`INSERT INTO models (name,display_name,provider,upstream_model,status,description,cost_class,data_classification,user_selectable) VALUES (?,?,?,?, 'active',?,?,?,?)`, req.Name, req.DisplayName, req.Provider, req.UpstreamModel, req.Description, req.CostClass, req.DataClassification, req.UserSelectable)
+	res, err := s.db.Exec(`INSERT INTO models (name,display_name,provider,upstream_model,status,description,cost_class,data_classification,user_selectable,provider_id,provider_model_id) VALUES (?,?,?,?, 'active',?,?,?,?,?,?)`, req.Name, req.DisplayName, req.Provider, req.UpstreamModel, req.Description, req.CostClass, req.DataClassification, req.UserSelectable, nullableID(req.ProviderID), nullableID(req.ProviderModelID))
 	if err != nil {
 		fail(c, 400, "could not create model")
 		return
@@ -986,16 +995,18 @@ func (s *server) updateModel(c *gin.Context) {
 		return
 	}
 	var req struct {
-		DisplayName    string `json:"display_name"`
-		Description    string `json:"description"`
-		Status         string `json:"status"`
-		UserSelectable bool   `json:"user_selectable"`
+		DisplayName     string `json:"display_name"`
+		Description     string `json:"description"`
+		Status          string `json:"status"`
+		UserSelectable  bool   `json:"user_selectable"`
+		ProviderID      int64  `json:"provider_id"`
+		ProviderModelID int64  `json:"provider_model_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil || req.DisplayName == "" {
 		fail(c, 400, "display_name is required")
 		return
 	}
-	if _, err := s.db.Exec(`UPDATE models SET display_name=?,description=?,status=?,user_selectable=?,updated_at=UTC_TIMESTAMP() WHERE id=?`, req.DisplayName, req.Description, req.Status, req.UserSelectable, id); err != nil {
+	if _, err := s.db.Exec(`UPDATE models SET display_name=?,description=?,status=?,user_selectable=?,provider_id=?,provider_model_id=?,updated_at=UTC_TIMESTAMP() WHERE id=?`, req.DisplayName, req.Description, req.Status, req.UserSelectable, nullableID(req.ProviderID), nullableID(req.ProviderModelID), id); err != nil {
 		fail(c, 400, "could not update model")
 		return
 	}
@@ -1362,6 +1373,10 @@ func (s *server) dashboard(c *gin.Context) {
 }
 
 func (s *server) requirePermission(c *gin.Context, permission string) bool {
+	if !s.canAccessAdmin(currentUserID(c)) {
+		failCode(c, http.StatusForbidden, "admin.api_forbidden", gin.H{"permission": permission})
+		return false
+	}
 	id := currentUserID(c)
 	var exists int
 	err := s.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM role_bindings rb JOIN role_permissions rp ON rp.role_id=rb.role_id JOIN permissions p ON p.id=rp.permission_id JOIN users u ON u.id=? WHERE p.code=? AND (rb.user_id=? OR (rb.user_id IS NULL AND rb.organization_id=u.organization_id AND rb.scope IN ('global','organization') ) OR (rb.department_id=u.department_id AND rb.scope='department')))`, id, permission, id).Scan(&exists)
@@ -1402,6 +1417,12 @@ func nullableID(id int64) any {
 	}
 	return id
 }
+func nullableJSONInt(value sql.NullInt64) any {
+	if !value.Valid {
+		return nil
+	}
+	return value.Int64
+}
 func paramID(c *gin.Context, key string) (int64, bool) {
 	id, err := strconv.ParseInt(c.Param(key), 10, 64)
 	if err != nil || id < 1 {
@@ -1415,6 +1436,13 @@ func fail(c *gin.Context, status int, message string) {
 }
 
 func seedDemoData(db *sql.DB, password string) error {
+	// Once the v0.3 demo baseline has been established, the legacy seed must
+	// not recreate its old business accounts and department tree on every
+	// restart. The v0.3 seed owns the current demo baseline from that point on.
+	var v03SeedMarker string
+	if err := db.QueryRow("SELECT setting_value FROM system_settings WHERE organization_id=1 AND setting_key='v03_seed_cleanup_completed'").Scan(&v03SeedMarker); err == nil && v03SeedMarker == "true" {
+		return nil
+	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err

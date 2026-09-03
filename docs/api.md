@@ -44,3 +44,8 @@ The routes continue to use the session and CSRF middleware. Mutations return str
 The consolidated UI uses `GET /users` with q, department_id, role_id, status, runtime_status and template_id filters. User management also provides `POST /users/import/validate`, `POST /users/import/confirm`, `POST /users/batch` and `GET /users/export`. Role membership uses `GET/POST /roles/:id/members` and `DELETE /roles/:id/members/:binding_id`. Runtime policy uses `GET/POST/PUT/DELETE /runtime-templates/:id/bindings...`. Knowledge Binding responses include target IDs for dependency navigation.
 
 `GET /audit-logs/v2` and `/audit-logs/export` share server-side filters including time range and Runtime, Skill and Model dimensions. `GET /audit-catalog` supplies category and action choices. Mutating routes continue to require session authorization and CSRF protection.
+
+
+## v0.3 Workspace and infrastructure routes
+
+The session-scoped me endpoints expose the authenticated user data: profile permissions, Agents, Models, Skills, Knowledge, channels, usage, notifications and persisted MockChatProvider conversations. Admin-only additions include admin/access, Provider Models, provider test/sync, model slot policies, self-service and channel policies, Runtime Hosts, runtime placement and resource usage. Mutating routes retain session and CSRF protection.

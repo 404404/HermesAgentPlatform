@@ -15,3 +15,8 @@ Execution Logs are persisted in executions with model, skills, tools, runtime, t
 ## v0.2.2 filter contract
 
 Audit Log remains Control Plane Audit and is not an Execution Log. The v2 query accepts time range, category, action, actor, department, resource type and ID, result, risk, source IP, profile, Runtime, Skill, Model and request ID. Category controls the action options in the UI, while all filtering is performed by the backend. CSV and JSON export uses the exact same query and export is itself audited; ordinary users cannot export the global stream.
+
+
+## v0.3 audit boundary
+
+Workspace activity and Chat messages are not Control Plane Audit. Administrative API calls remain audited, while high-risk execution requests remain linked to Approval. Provider tests, catalog sync, runtime host changes and placement are recorded as Control Plane operations. Runtime Hosts store credential references only.

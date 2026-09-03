@@ -18,3 +18,8 @@ Runtime Template contains infrastructure fields only: CPU, memory, storage, prof
 ## v0.2.2 policy binding and management UX
 
 Runtime Template contains infrastructure fields only. Role and Department policy bindings are stored in `runtime_template_bindings` with `binding_priority`; the editor updates existing bindings through a scoped API. Resolution never silently chooses between equal-priority different templates and reports a conflict for administrator action. User Runtime shows desired and observed status, Profiles, Effective Skills, Executions, Resources and Controls. Emergency Kill Switch remains distinct from Stop and requires a reason, security permission, Critical Audit event and notification.
+
+
+## v0.3 runtime hosts
+
+Runtime Management exposes a Runtime Host inventory tab. Hosts are tested and inventoried through MockRuntimeHostProvider, then selected by MockScheduler for runtime placement. Host placement is an infrastructure relationship; it does not move Skills, Knowledge or Agent behavior into Runtime Templates. Automatic and manual provisioning remain Demo resource-record operations.

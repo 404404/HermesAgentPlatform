@@ -30,6 +30,7 @@ services:
       PORT: 8080
       MIGRATIONS_DIR: /app/migrations
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-ChangeMe-Admin-2026!}
+      HEP_DEMO_USER_PASSWORD: ${HEP_DEMO_USER_PASSWORD:-ChangeMe-User-2026!}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-http://localhost:18080}
       TZ: UTC
