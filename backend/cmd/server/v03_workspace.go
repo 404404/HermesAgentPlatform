@@ -127,7 +127,31 @@ func (s *server) workspaceMe(c *gin.Context) {
 		failCode(c, http.StatusNotFound, "workspace.user_not_found", nil)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": user})
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"id": user.ID, "username": user.Username, "display_name": user.DisplayName, "email": user.Email, "department": user.Department, "enterprise_roles": user.Roles, "permissions": s.workspacePermissionCodes(user.ID), "workspace_capabilities": s.workspaceCapabilities(user.ID), "admin_console_access": s.canAccessAdmin(user.ID), "runtime_summary": gin.H{"status": user.Runtime, "profile_count": user.ProfileCount}, "user": user}})
+}
+
+func (s *server) workspaceCapabilities(userID int64) gin.H {
+	capabilities := gin.H{}
+	for _, capability := range selfServiceCapabilities {
+		capabilities[capability] = s.selfServiceAllowed(userID, capability, "")
+	}
+	return capabilities
+}
+
+func (s *server) workspacePermissionCodes(userID int64) []string {
+	rows, err := s.db.Query("SELECT DISTINCT p.code FROM role_bindings rb JOIN role_permissions rp ON rp.role_id=rb.role_id JOIN permissions p ON p.id=rp.permission_id WHERE rb.user_id=? OR (rb.user_id IS NULL AND rb.organization_id=(SELECT organization_id FROM users WHERE id=?)) ORDER BY p.code", userID, userID)
+	if err != nil {
+		return []string{}
+	}
+	defer rows.Close()
+	permissions := []string{}
+	for rows.Next() {
+		var permission string
+		if rows.Scan(&permission) == nil {
+			permissions = append(permissions, permission)
+		}
+	}
+	return permissions
 }
 
 func (s *server) workspacePermissions(c *gin.Context) {

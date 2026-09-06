@@ -8,7 +8,7 @@
 
 Passwords use bcrypt. The login session is an opaque, in-memory token in an HttpOnly `hep_session` cookie; a deployment restart logs users out. A separate `hep_csrf` cookie must match `X-CSRF-Token` on mutations. CORS allows only the configured frontend origin. Password hashes, secrets and tokens are not returned by API responses or written to audit metadata.
 
-The demo password is configurable through `SEED_ADMIN_PASSWORD`; replace it before sharing the service. Production hardening should move sessions to a durable encrypted store, enable Secure cookies behind HTTPS, add rate limits, email verification and session rotation.
+Demo credentials are configuration-only: `SEED_ADMIN_PASSWORD` seeds `admin` and `HEP_DEMO_USER_PASSWORD` seeds `user01` and `user02`. `HEP_DEMO_MODE` must be explicitly true before a local-only documented fallback is allowed; when it is false, a missing password aborts startup. All seeded values are bcrypt hashes, never plaintext. Production hardening should move sessions to a durable encrypted store, enable Secure cookies behind HTTPS, add rate limits, email verification and session rotation.
 
 
 ## Phase 2 governance boundary

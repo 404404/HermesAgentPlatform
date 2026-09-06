@@ -4,7 +4,7 @@ All routes below are under `/api/v1`, require the local session except login, an
 
 | Area | Routes |
 | --- | --- |
-| Auth | `POST /auth/login`, `GET /auth/me`, `POST /auth/logout` |
+| Auth | `POST /auth/login`, `GET /auth/demo-info`, `GET /auth/me`, `POST /auth/logout` |
 | Dashboard | `GET /dashboard` |
 | Users | `GET/POST /users`, `PUT /users/:id`, `POST /users/:id/status` |
 | Departments | `GET /departments/tree`, `POST/PUT/DELETE /departments/:id` |
@@ -48,4 +48,4 @@ The consolidated UI uses `GET /users` with q, department_id, role_id, status, ru
 
 ## v0.3 Workspace and infrastructure routes
 
-The session-scoped me endpoints expose the authenticated user data: profile permissions, Agents, Models, Skills, Knowledge, channels, usage, notifications and persisted MockChatProvider conversations. Admin-only additions include admin/access, Provider Models, provider test/sync, model slot policies, self-service and channel policies, Runtime Hosts, runtime placement and resource usage. Mutating routes retain session and CSRF protection.
+`GET /me` returns the authenticated identity, department, enterprise roles, effective RBAC permissions, self-service capabilities, Admin eligibility and Runtime summary. The remaining session-scoped me endpoints expose the user-owned Agents, effective Models, Skills, Knowledge, Channels, Usage, notifications and persisted MockChatProvider conversations. Admin-only additions include admin/access, Provider Models, provider test/sync, model slot policies, self-service and channel policies, Runtime Hosts, runtime placement and resource usage. Mutating routes retain session and CSRF protection.

@@ -1,6 +1,6 @@
 # User Workspace (v0.3)
 
-HEP has one login and one session. After login every account opens the Workspace. Accounts with an administrative role may switch to `/admin` from the user menu; ordinary users are denied by the backend and remain in the Workspace.
+HEP has one login and one session. After login every account opens the Workspace. Canonical UI routes are `/login`, `/workspace` (redirecting to `/workspace/chat`) and `/admin` (redirecting to `/admin/overview`). Accounts with an administrative role may switch to `/admin` from the user menu; ordinary users are denied by the backend and remain in the Workspace. Legacy root Admin paths such as `/organization` redirect to their `/admin/*` equivalent with query parameters preserved.
 
 Workspace resources are always scoped to the authenticated user. The `/me` route family exposes the current user, effective permissions, managed and personal Agent Profiles, selectable logical models, effective Skills and Knowledge, channel connections, notifications and usage. No endpoint accepts a user id for impersonation.
 

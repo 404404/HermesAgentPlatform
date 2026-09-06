@@ -11,7 +11,14 @@ DOCKER_BUILDKIT=0 docker compose -f deploy/docker-compose.yml --project-director
 
 Open `http://localhost:18080`. The API health endpoint is `http://localhost:18081/healthz`.
 
-The default demo administrator is `admin` with the password from `SEED_ADMIN_PASSWORD` (example: `ChangeMe-Admin-2026!`). Change it before any shared deployment. The backend hashes it with bcrypt; the password is never stored in plaintext.
+## Demo accounts and passwords
+
+The local Demo seeds these accounts:
+
+- `admin` — password from `SEED_ADMIN_PASSWORD` (example: `ChangeMe-Admin-2026!`)
+- `user01` and `user02` — password from `HEP_DEMO_USER_PASSWORD` (example: `ChangeMe-User-2026!`)
+
+Set `HEP_DEMO_MODE=true` only for a local Demo. In that mode, omitted password variables use the documented examples above. With `HEP_DEMO_MODE=false`, both password variables are mandatory and the backend refuses to start if either is missing. The backend stores bcrypt hashes only; on every Demo seed run it re-hashes the configured password for the seeded accounts, so an existing Demo database is reset to the configured credentials without ever storing plaintext.
 
 ## Phase 1
 

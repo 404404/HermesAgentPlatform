@@ -85,6 +85,9 @@ func seedV03Data(db *sql.DB, adminPassword, userPassword string) error {
 	if err := v03SeedRoleBindings(db, adminID, securityID, auditID, user01ID, user02ID, cleanupNeeded); err != nil {
 		return err
 	}
+	if err := v031SeedWorkspacePermissions(db); err != nil {
+		return err
+	}
 	if err := v03SeedModels(db, adminID); err != nil {
 		return err
 	}
@@ -250,6 +253,34 @@ func v03SeedRoleBindings(db *sql.DB, adminID, securityID, auditID, user01ID, use
 		}
 		if err := v03EnsureRoleBinding(db, binding.role, binding.user); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+var workspacePermissionSeedCodes = []string{"workspace.access", "workspace.chat.use", "workspace.profile.self.read", "workspace.model.self.read", "workspace.skill.self.read", "workspace.knowledge.self.read", "workspace.channel.self.read", "workspace.usage.self.read"}
+
+// v031SeedWorkspacePermissions makes Workspace access explicit in the same RBAC graph.
+func v031SeedWorkspacePermissions(db *sql.DB) error {
+	permissions := workspacePermissionSeedCodes
+	for _, code := range permissions {
+		if _, err := db.Exec("INSERT INTO permissions(code,description) VALUES(?,?) ON DUPLICATE KEY UPDATE description=VALUES(description)", code, code); err != nil {
+			return err
+		}
+	}
+	for _, roleName := range []string{"Standard User", "Developer"} {
+		roleID := v03RoleID(db, roleName)
+		if roleID == 0 {
+			continue
+		}
+		for _, code := range permissions {
+			var permissionID int64
+			if err := db.QueryRow("SELECT id FROM permissions WHERE code=?", code).Scan(&permissionID); err != nil {
+				return err
+			}
+			if _, err := db.Exec("INSERT IGNORE INTO role_permissions(role_id,permission_id) VALUES(?,?)", roleID, permissionID); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

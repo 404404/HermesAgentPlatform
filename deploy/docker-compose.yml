@@ -29,8 +29,9 @@ services:
       DB_DSN: ${DB_DSN:-hep:hep_password@tcp(mysql:3306)/hep?parseTime=true&charset=utf8mb4&loc=UTC}
       PORT: 8080
       MIGRATIONS_DIR: /app/migrations
-      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-ChangeMe-Admin-2026!}
-      HEP_DEMO_USER_PASSWORD: ${HEP_DEMO_USER_PASSWORD:-ChangeMe-User-2026!}
+      HEP_DEMO_MODE: ${HEP_DEMO_MODE:?HEP_DEMO_MODE must be explicitly set}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      HEP_DEMO_USER_PASSWORD: ${HEP_DEMO_USER_PASSWORD:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-http://localhost:18080}
       TZ: UTC
