@@ -39,3 +39,7 @@ The `demo` branch remains a Control Plane Demo. MockRuntimeProvider, MockKnowled
 All accounts authenticate through the same local session. The canonical navigation namespaces are `/workspace/*` and `/admin/*`; the default landing surface is Workspace. Admin Console access is both UI-guarded and backend-authorized by administrative role. Workspace resource APIs use the session user as their scope and expose no impersonation route. MockChatProvider, MockScheduler, MockRuntimeHostProvider, MockModelProvider and MockKnowledgeProvider keep integrations replaceable. Operational secrets use the database-backed AES-256-GCM SecretProvider boundary; no provider may return raw credential material to the browser.
 
 Runtime Hosts hold non-secret inventory and credential references. No TCP Docker endpoint, host socket, privileged container or real Hermes runtime is introduced by v0.3. Provider Models bridge Model Providers and logical Models, while slot and self-service policies remain database-backed Control Plane policy.
+
+## v0.3.3 admin and workspace usability
+
+v0.3.3 preserves the one Control Plane data set while adding profile configuration overlays, desired Runtime configuration and persisted Workspace Chat artifacts. The Admin Console owns global configuration. Workspace reads only session-user effective resources. Chat Conversation, Message and Feedback persistence is provider-agnostic; MockChatProvider remains the current adapter.

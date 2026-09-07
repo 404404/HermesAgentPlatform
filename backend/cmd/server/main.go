@@ -126,6 +126,9 @@ func main() {
 	if err := seedV03Data(db, cfg.adminPassword, cfg.userPassword); err != nil {
 		log.Fatal(err)
 	}
+	if err := seedV033Data(db); err != nil {
+		log.Fatal(err)
+	}
 	secretProvider, err := newDatabaseSecretProvider(db, cfg.secretMasterKey)
 	if err != nil {
 		log.Fatal(err)
@@ -188,6 +191,7 @@ func main() {
 	registerPhase2Routes(auth, s)
 	registerPhase3Routes(auth, s)
 	registerV03Routes(auth, s)
+	registerV033Routes(auth, s)
 
 	log.Printf("HEP API listening on :%s", cfg.port)
 	if err := r.Run(":" + cfg.port); err != nil {

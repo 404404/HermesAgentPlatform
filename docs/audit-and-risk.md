@@ -20,3 +20,8 @@ Audit Log remains Control Plane Audit and is not an Execution Log. The v2 query 
 ## v0.3 audit boundary
 
 Workspace activity and Chat messages are not Control Plane Audit. Administrative API calls remain audited, while high-risk execution requests remain linked to Approval. Provider tests, catalog sync, runtime host changes and placement are recorded as Control Plane operations. Runtime Hosts store credential references only.
+
+
+## v0.3.3 governed Skill workflow
+
+Skill review workflows, ordered review steps and review instances are persisted separately from generic approvals. Their timeline is a Skill governance audit trail. Chat feedback and ordinary chat history are Workspace operational records, not Control Plane Audit events; administrative configuration changes and high-risk decisions remain auditable.

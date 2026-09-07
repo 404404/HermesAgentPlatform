@@ -20,3 +20,8 @@ Knowledge Binding supports Organization, Department, Role, Profile and Agent Tem
 ## v0.3 Workspace knowledge
 
 Workspace Knowledge is calculated from the current user's effective Agent Profiles and the organization/departments/roles/profile bindings. It is read-only in the user surface; administration continues to manage Knowledge Base content, bindings and versions. This remains separate from Hermes personal memory and uses MockKnowledgeProvider.
+
+
+## v0.3.3 content workspace
+
+Knowledge management uses a master-detail layout: the selected Knowledge Base is an administrative context, while item editing stays inside that context. Q&A and Markdown imports produce explicit import-job records. Workspace reads the same Knowledge Bases through a per-user access policy (query_only, read, contribute or manage); it does not maintain a duplicate user content store.

@@ -42,3 +42,7 @@ Activity is a business summary, Execution Log records Agent work, Approval Reque
 HEP uses one authenticated session and two presentation surfaces: Workspace for every user and Admin Console for administrative roles. Workspace APIs are scoped to the session user and do not support impersonation. Chat persistence is represented by conversations and messages and uses MockChatProvider until a Hermes adapter is introduced.
 
 The model catalog separates logical Models, Model Providers and Provider Models. Model Slot Policies reserve the Hermes auxiliary slots without coupling the Control Plane to provider secrets or real model calls. Runtime Hosts and MockScheduler are infrastructure foundations and do not change the User Runtime/Profile boundary.
+
+## v0.3.3 overlays and conversations
+
+Agent Profile retains its managed template baseline and can carry explicit auxiliary-model, optional-Skill and Knowledge override IDs. These are configuration overlays, not a second template relationship. User Runtime keeps desired resource/configuration values distinct from observed provider state. Chat Conversation and Chat Message are user-scoped operational records; Message Feedback and regeneration preserve a clear future Hermes chat-provider boundary.

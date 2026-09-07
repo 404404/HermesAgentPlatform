@@ -30,3 +30,8 @@ The single session lands in Workspace. Administrative roles can switch surfaces 
 Management tables use a right-sticky Actions column. Primary actions remain in the page header; row actions are compact icon controls in the order status, view, edit, more. Destructive actions belong in More. `ActionCell` is the reusable implementation for new surfaces, while legacy tables are progressively migrated without changing their domain data source.
 
 Credentials are entered inline where their owning resource is created (for example Runtime Host or Model Provider). The UI only renders configured state and never reads a credential value back.
+
+
+## v0.3.3 action and language standard
+
+ActionCell now renders textual View, Edit and More controls consistently in right-sticky Actions columns; status remains the optional leading switch and destructive commands remain inside More. Browser language selection uses a persisted explicit choice first and otherwise detects a Chinese browser locale before falling back to en-US. New UI strings must be present in both catalogs; npm run i18n:audit verifies parity.
