@@ -49,3 +49,7 @@ The consolidated UI uses `GET /users` with q, department_id, role_id, status, ru
 ## v0.3 Workspace and infrastructure routes
 
 `GET /me` returns the authenticated identity, department, enterprise roles, effective RBAC permissions, self-service capabilities, Admin eligibility and Runtime summary. The remaining session-scoped me endpoints expose the user-owned Agents, effective Models, Skills, Knowledge, Channels, Usage, notifications and persisted MockChatProvider conversations. Admin-only additions include admin/access, Provider Models, provider test/sync, model slot policies, self-service and channel policies, Runtime Hosts, runtime placement and resource usage. Mutating routes retain session and CSRF protection.
+
+### v0.3.2 infrastructure API
+
+`GET/POST /runtime-hosts`, `GET/PUT/DELETE /runtime-hosts/:id`, `POST /runtime-hosts/:id/test`, `POST /runtime-hosts/:id/inventory`, and `POST /runtime-hosts/:id/status` manage physical/VM inventory behind `runtime.manage`. Credential payload fields are write-only. `GET /runtimes-v2` and `GET /runtimes/:id/detail` expose `runtime_host_id`; API consumers must not construct a second host/runtime relationship. Model Provider create/update accepts write-only `credential` in the existing `/model-providers` API while responses expose only configuration status.

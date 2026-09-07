@@ -24,3 +24,9 @@ Desktop layouts are checked at 1440px, 1280px and 1024px. Settings uses a three-
 ## v0.3 surfaces
 
 The single session lands in Workspace. Administrative roles can switch surfaces from the user menu; ordinary users do not see the switch and the backend denies Admin Console routes. Workspace navigation owns Chat, My Agents, Resources, Connections and Account; Platform Health and Notifications remain dashboard/header affordances. Global Refresh lives in the sticky header and dispatches a shared refresh event.
+
+## v0.3.2 conventions
+
+Management tables use a right-sticky Actions column. Primary actions remain in the page header; row actions are compact icon controls in the order status, view, edit, more. Destructive actions belong in More. `ActionCell` is the reusable implementation for new surfaces, while legacy tables are progressively migrated without changing their domain data source.
+
+Credentials are entered inline where their owning resource is created (for example Runtime Host or Model Provider). The UI only renders configured state and never reads a credential value back.

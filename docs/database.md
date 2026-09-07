@@ -25,3 +25,8 @@ Migration 004_domain_consolidation.sql evolves the existing Demo schema without 
 ## v0.2.2 migration
 
 Migration `005_v022_relationship_management.sql` evolves the schema without editing earlier migrations. It adds `runtime_template_bindings` for infrastructure policy relationships and adds `knowledge_bindings.agent_template_id` for Knowledge to Agent Template associations. Foreign keys and indexes preserve upgrade safety. The backend applies migration 005 to existing Demo databases and the same ordered migrations work on an empty database.
+
+
+### v0.3.2 storage evolution
+
+Migration `007_v032_runtime_host_infrastructure.sql` adds Runtime Host connection metadata, actual/allocated mock metrics, container count and description. Migration `008_v032_runtime_host_auth_normalization.sql` maps the historical demo `secret_reference` auth marker to supported `password`. `runtimes.host_id` remains the physical storage column for backward compatibility; `runtime_host_id` is the public API/domain name. Provider and host credentials remain secret references and use `secrets.encrypted_value`, never a provider/host plaintext column.

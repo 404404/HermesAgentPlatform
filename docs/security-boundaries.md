@@ -14,3 +14,8 @@ Demo credentials are configuration-only: `SEED_ADMIN_PASSWORD` seeds `admin` and
 ## Phase 2 governance boundary
 
 The backend RiskEvaluator, role checks and lifecycle orchestration are control-plane services. Break-glass login is critical and high-risk changes can become Approval Requests. Secret records contain references/status only; no plaintext model key is returned. The Demo still has in-memory sessions and Mock providers, and intentionally does not mount a Docker Socket, use privileged containers or perform real Hermes execution.
+
+
+### v0.3.2 infrastructure boundary
+
+Runtime Host onboarding stores only local Docker socket paths as future SSH/Node-Agent instructions. It never exposes a TCP Docker endpoint and this release does not perform SSH, Docker, Hermes provisioning or container control. `MockRuntimeHostProvider` verifies the intended API contract only.

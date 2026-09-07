@@ -78,13 +78,16 @@ func registerV03Routes(auth *gin.RouterGroup, s *server) {
 	auth.GET("/channel-policies", s.listChannelPolicies)
 	auth.POST("/channel-policies", s.createChannelPolicy)
 	auth.PUT("/channel-policies/:id", s.updateChannelPolicy)
-	auth.GET("/runtime-hosts", s.listRuntimeHosts)
-	auth.POST("/runtime-hosts", s.createRuntimeHost)
-	auth.PUT("/runtime-hosts/:id", s.updateRuntimeHost)
-	auth.POST("/runtime-hosts/:id/test", s.testRuntimeHost)
-	auth.POST("/runtime-hosts/:id/inventory", s.inventoryRuntimeHost)
+	auth.GET("/runtime-hosts", s.listRuntimeHostsV032)
+	auth.GET("/runtime-hosts/:id", s.runtimeHostDetailV032)
+	auth.POST("/runtime-hosts", s.createRuntimeHostV032)
+	auth.PUT("/runtime-hosts/:id", s.updateRuntimeHostV032)
+	auth.POST("/runtime-hosts/:id/test", s.testRuntimeHostV032)
+	auth.POST("/runtime-hosts/:id/inventory", s.inventoryRuntimeHostV032)
+	auth.POST("/runtime-hosts/:id/status", s.setRuntimeHostStatusV032)
+	auth.DELETE("/runtime-hosts/:id", s.deleteRuntimeHostV032)
 	auth.POST("/runtimes/:id/place", s.placeRuntime)
-	auth.GET("/usage/resources", s.resourceUsage)
+	auth.GET("/usage/resources", s.resourceUsageV032)
 }
 
 func (s *server) canAccessAdmin(userID int64) bool {

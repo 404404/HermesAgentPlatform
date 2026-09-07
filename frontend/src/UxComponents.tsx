@@ -1,6 +1,7 @@
 import { ReactNode } from 'react'
 import { Button, Dropdown, Popover, Select, Space, Tag } from 'antd'
 import { DownOutlined, EditOutlined, EyeOutlined, MoreOutlined, SearchOutlined } from '@ant-design/icons'
+import { useI18n } from "./i18n"
 
 export type EntityOption = {
   value: string | number
@@ -81,10 +82,11 @@ export function TableActions({
   onEdit?: () => void
   moreItems?: Array<{ key: string; label: string; danger?: boolean; onClick: () => void }>
 }) {
+  const { t } = useI18n()
   const items = moreItems?.map(({ onClick, ...item }) => ({ ...item, onClick }))
   return <Space className="table-actions" size={4}>
-    {onView && <Button size="small" type="text" icon={<EyeOutlined />} onClick={onView}>View</Button>}
-    {onEdit && <Button size="small" type="text" icon={<EditOutlined />} onClick={onEdit}>Edit</Button>}
-    {items?.length ? <Dropdown menu={{ items }} trigger={['click']}><Button size="small" type="text" icon={<MoreOutlined />} aria-label="More actions" /></Dropdown> : null}
+    {onView && <Button size="small" type="text" icon={<EyeOutlined />} onClick={onView}>{t("viewDetails")}</Button>}
+    {onEdit && <Button size="small" type="text" icon={<EditOutlined />} onClick={onEdit}>{t("edit")}</Button>}
+    {items?.length ? <Dropdown menu={{ items }} trigger={['click']}><Button size="small" type="text" icon={<MoreOutlined />} aria-label={t("moreActions")} /></Dropdown> : null}
   </Space>
 }

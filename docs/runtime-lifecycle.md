@@ -22,4 +22,4 @@ Runtime Template contains infrastructure fields only. Role and Department policy
 
 ## v0.3 runtime hosts
 
-Runtime Management exposes a Runtime Host inventory tab. Hosts are tested and inventoried through MockRuntimeHostProvider, then selected by MockScheduler for runtime placement. Host placement is an infrastructure relationship; it does not move Skills, Knowledge or Agent behavior into Runtime Templates. Automatic and manual provisioning remain Demo resource-record operations.
+Runtime Management exposes User Runtimes; Settings → Runtime Infrastructure owns Runtime Host onboarding and inventory. Hosts are tested and inventoried through MockRuntimeHostProvider, then selected by MockScheduler for runtime placement. Host placement is an infrastructure relationship; it does not move Skills, Knowledge or Agent behavior into Runtime Templates. Automatic and manual provisioning remain Demo resource-record operations.

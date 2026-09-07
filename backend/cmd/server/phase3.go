@@ -362,15 +362,15 @@ func (s *server) runtimeDetailV21(c *gin.Context) {
 	var uid int64
 	var user, runtimeID, status, desired, observed, provider, version, cpu, mem, storage, network, created string
 	var profileLimit, jobs int
-	var template sql.NullInt64
+	var template, hostID sql.NullInt64
 	var kill bool
 	var reason string
-	err := s.db.QueryRow(`SELECT r.user_id,u.display_name,r.runtime_id,r.status,r.desired_status,r.observed_status,r.provider,r.hermes_version,r.cpu_limit,r.memory_limit,r.storage_limit,r.profile_limit,r.max_concurrent_jobs,r.network_policy,r.template_id,r.kill_switch_enabled,r.kill_switch_reason,r.created_at FROM runtimes r JOIN users u ON u.id=r.user_id WHERE r.id=?`, id).Scan(&uid, &user, &runtimeID, &status, &desired, &observed, &provider, &version, &cpu, &mem, &storage, &profileLimit, &jobs, &network, &template, &kill, &reason, &created)
+	err := s.db.QueryRow(`SELECT r.user_id,u.display_name,r.runtime_id,r.status,r.desired_status,r.observed_status,r.provider,r.hermes_version,r.cpu_limit,r.memory_limit,r.storage_limit,r.profile_limit,r.max_concurrent_jobs,r.network_policy,r.template_id,r.host_id,r.kill_switch_enabled,r.kill_switch_reason,r.created_at FROM runtimes r JOIN users u ON u.id=r.user_id WHERE r.id=?`, id).Scan(&uid, &user, &runtimeID, &status, &desired, &observed, &provider, &version, &cpu, &mem, &storage, &profileLimit, &jobs, &network, &template, &hostID, &kill, &reason, &created)
 	if err != nil {
 		failCode(c, 404, "runtime.not_found", nil)
 		return
 	}
-	c.JSON(200, gin.H{"data": gin.H{"id": id, "user_id": uid, "user": user, "runtime_id": runtimeID, "status": status, "desired_status": desired, "observed_status": observed, "provider": provider, "hermes_version": version, "cpu_limit": cpu, "memory_limit": mem, "storage_limit": storage, "profile_limit": profileLimit, "max_concurrent_jobs": jobs, "network_policy": network, "template_id": nullableSQLID(template), "kill_switch_enabled": kill, "kill_switch_reason": reason, "created_at": created, "profiles": s.userProfilesData(uid), "tabs": []string{"Overview", "Profiles", "Effective Skills", "Executions", "Resources", "Controls", "Events"}}})
+	c.JSON(200, gin.H{"data": gin.H{"id": id, "user_id": uid, "user": user, "runtime_id": runtimeID, "status": status, "desired_status": desired, "observed_status": observed, "provider": provider, "hermes_version": version, "cpu_limit": cpu, "memory_limit": mem, "storage_limit": storage, "profile_limit": profileLimit, "max_concurrent_jobs": jobs, "network_policy": network, "template_id": nullableSQLID(template), "runtime_host_id": nullableSQLID(hostID), "kill_switch_enabled": kill, "kill_switch_reason": reason, "created_at": created, "profiles": s.userProfilesData(uid), "tabs": []string{"Overview", "Profiles", "Effective Skills", "Executions", "Resources", "Controls", "Events"}}})
 }
 
 func (s *server) runtimeEffectiveSkills(c *gin.Context) {

@@ -304,7 +304,7 @@ func v03SeedModels(db *sql.DB, adminID int64) error {
 		}
 		gatewayID, _ = res.LastInsertId()
 	}
-	_, _ = db.Exec("UPDATE model_providers SET health_status='healthy' WHERE id IN (?,?)", nativeID, gatewayID)
+	_, _ = db.Exec("UPDATE model_providers SET health_status='online' WHERE id IN (?,?)", nativeID, gatewayID)
 	models := []struct {
 		name, display, upstream string
 		provider                int64
@@ -522,7 +522,7 @@ func v03SeedRuntimeHost(db *sql.DB, adminID int64) error {
 	err := db.QueryRow("SELECT id FROM runtime_hosts WHERE name='Demo Runtime Host' LIMIT 1").Scan(&hostID)
 	if err == sql.ErrNoRows {
 		res, insertErr := db.Exec(`INSERT INTO runtime_hosts(organization_id,name,hostname,address,ssh_port,auth_type,credential_reference_id,docker_endpoint,docker_version,cpu_total,memory_total,storage_total,cpu_allocated,memory_allocated,storage_allocated,status,labels,last_seen,last_inventory_at,created_by)
-			VALUES(1,'Demo Runtime Host','rs820-demo','mock://rs820-runtime-host',22,'secret_reference',NULL,'mock://local-runtime-provider','mock-docker-27','16 CPU','32 GB','500 GB','2 CPU','2 GB','20 GB','healthy',JSON_ARRAY('demo','mock','synology'),UTC_TIMESTAMP(),UTC_TIMESTAMP(),?)`, adminID)
+			VALUES(1,'Demo Runtime Host','rs820-demo','mock://rs820-runtime-host',22,'password',NULL,'mock://local-runtime-provider','mock-docker-27','16 CPU','32 GB','500 GB','2 CPU','2 GB','20 GB','online',JSON_ARRAY('demo','mock','synology'),UTC_TIMESTAMP(),UTC_TIMESTAMP(),?)`, adminID)
 		if insertErr != nil {
 			return insertErr
 		}
@@ -530,7 +530,7 @@ func v03SeedRuntimeHost(db *sql.DB, adminID int64) error {
 	} else if err != nil {
 		return err
 	}
-	if _, err := db.Exec("UPDATE runtime_hosts SET status='healthy',docker_version='mock-docker-27',last_seen=UTC_TIMESTAMP(),last_inventory_at=UTC_TIMESTAMP() WHERE id=?", hostID); err != nil {
+	if _, err := db.Exec("UPDATE runtime_hosts SET auth_type='password',status='online',docker_version='mock-docker-27',last_seen=UTC_TIMESTAMP(),last_inventory_at=UTC_TIMESTAMP() WHERE id=?", hostID); err != nil {
 		return err
 	}
 	rows, _ := db.Query("SELECT id FROM runtimes WHERE user_id IN (SELECT id FROM users WHERE username IN ('user01','user02'))")

@@ -103,8 +103,8 @@ func registerPhase2Routes(auth *gin.RouterGroup, s *server) {
 
 	// Model access and secret references
 	auth.GET("/model-providers", s.listModelProviders)
-	auth.POST("/model-providers", s.createModelProvider)
-	auth.PUT("/model-providers/:id", s.updateModelProvider)
+	auth.POST("/model-providers", s.createModelProviderV032)
+	auth.PUT("/model-providers/:id", s.updateModelProviderV032)
 	auth.GET("/secrets", s.listSecrets)
 	auth.POST("/secrets", s.createSecretReference)
 
