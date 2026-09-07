@@ -1,7 +1,8 @@
 import { ReactNode } from 'react'
-import { Button, Dropdown, Popover, Select, Space, Tag } from 'antd'
-import { DownOutlined, EditOutlined, EyeOutlined, MoreOutlined, SearchOutlined } from '@ant-design/icons'
-import { useI18n } from "./i18n"
+import { Popover, Select, Space, Tag } from 'antd'
+import { DownOutlined, SearchOutlined } from '@ant-design/icons'
+import { ActionCell } from './ActionCell'
+import { useI18n } from './i18n'
 
 export type EntityOption = {
   value: string | number
@@ -17,7 +18,7 @@ export function EntityMultiSelect({
   options,
   value,
   onChange,
-  placeholder = 'Search and select',
+  placeholder,
   disabled,
   loading,
 }: {
@@ -28,6 +29,7 @@ export function EntityMultiSelect({
   disabled?: boolean
   loading?: boolean
 }) {
+  const { t } = useI18n()
   return <Select
     mode="multiple"
     showSearch
@@ -38,7 +40,7 @@ export function EntityMultiSelect({
     onChange={onChange}
     optionFilterProp="label"
     suffixIcon={<SearchOutlined />}
-    placeholder={placeholder}
+    placeholder={placeholder || t('searchAndSelect')}
     style={{ width: '100%' }}
     options={options.map((option) => ({
       value: option.value,
@@ -59,13 +61,14 @@ export function RelationTags({
   max?: number
   onClick?: (value: string | { id?: string | number; name?: string; label?: string }) => void
 }) {
+  const { t } = useI18n()
   const normalized = (values || []).map((value) => typeof value === 'string' ? value : (value.name || value.label || String(value.id || '—')))
   if (!normalized.length) return <span className="muted">—</span>
   const visible = normalized.slice(0, max)
   const rest = normalized.slice(max)
   return <Space size={[4, 4]} wrap>
     {visible.map((value, index) => <Tag key={`${value}-${index}`} className={onClick ? 'relation-tag-clickable' : undefined} onClick={() => onClick?.((values || [])[index])}>{value}</Tag>)}
-    {rest.length > 0 && <Popover title="All related entities" content={<Space direction="vertical">{rest.map((value, index) => <Tag key={`${value}-${index}`} className={onClick ? 'relation-tag-clickable' : undefined} onClick={() => onClick?.((values || [])[max + index])}>{value}</Tag>)}</Space>}><Tag color="blue">+{rest.length}<DownOutlined /></Tag></Popover>}
+    {rest.length > 0 && <Popover title={t('allRelatedEntities')} content={<Space direction="vertical">{rest.map((value, index) => <Tag key={`${value}-${index}`} className={onClick ? 'relation-tag-clickable' : undefined} onClick={() => onClick?.((values || [])[max + index])}>{value}</Tag>)}</Space>}><Tag color="blue">+{rest.length}<DownOutlined /></Tag></Popover>}
   </Space>
 }
 
@@ -82,11 +85,6 @@ export function TableActions({
   onEdit?: () => void
   moreItems?: Array<{ key: string; label: string; danger?: boolean; onClick: () => void }>
 }) {
-  const { t } = useI18n()
   const items = moreItems?.map(({ onClick, ...item }) => ({ ...item, onClick }))
-  return <Space className="table-actions" size={4}>
-    {onView && <Button size="small" type="text" icon={<EyeOutlined />} onClick={onView}>{t("viewDetails")}</Button>}
-    {onEdit && <Button size="small" type="text" icon={<EditOutlined />} onClick={onEdit}>{t("edit")}</Button>}
-    {items?.length ? <Dropdown menu={{ items }} trigger={['click']}><Button size="small" type="text" icon={<MoreOutlined />} aria-label={t("moreActions")} /></Dropdown> : null}
-  </Space>
+  return <ActionCell onView={onView} onEdit={onEdit} moreItems={items} />
 }

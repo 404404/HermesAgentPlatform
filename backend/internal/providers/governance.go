@@ -12,18 +12,3 @@ type NotificationProvider interface {
 type MockNotificationProvider struct{}
 
 func (MockNotificationProvider) Notify(_ context.Context, _ int64, _, _, _ string) error { return nil }
-
-// SecretProvider receives references, never UI-visible plaintext values.
-type SecretProvider interface {
-	PutReference(ctx context.Context, name, secretType, scope string) (string, error)
-	Status(ctx context.Context, reference string) (string, error)
-}
-
-type MockSecretProvider struct{}
-
-func (MockSecretProvider) PutReference(_ context.Context, name, _, _ string) (string, error) {
-	return "mock-secret-ref-" + name, nil
-}
-func (MockSecretProvider) Status(_ context.Context, _ string) (string, error) {
-	return "not_configured", nil
-}

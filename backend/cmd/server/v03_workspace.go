@@ -838,6 +838,15 @@ func (s *server) testModelProvider(c *gin.Context) {
 	if !ok {
 		return
 	}
+	var credential sql.NullInt64
+	if s.db.QueryRow("SELECT secret_reference_id FROM model_providers WHERE id=? AND organization_id=?", id, s.currentOrg(c)).Scan(&credential) != nil {
+		failCode(c, http.StatusNotFound, "provider.not_found", nil)
+		return
+	}
+	if err := s.decryptCredentialForIntegration(c.Request.Context(), credential); err != nil {
+		failCode(c, http.StatusConflict, "provider.credential_unavailable", gin.H{"status": s.credentialStatus(c.Request.Context(), credential)})
+		return
+	}
 	if _, err := s.db.Exec("UPDATE model_providers SET health_status='healthy',last_tested_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP() WHERE id=? AND organization_id=?", id, s.currentOrg(c)); err != nil {
 		failCode(c, 400, "provider.test_failed", nil)
 		return

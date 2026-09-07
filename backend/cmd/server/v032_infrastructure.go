@@ -9,33 +9,23 @@ import (
 
 	"github.com/example/hermes-enterprise-platform/backend/internal/providers"
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 )
 
-// v0.3.2 accepts credentials only as write-only payload fields. Values are
-// bcrypt-protected in the demo database and never selected into an API result.
-// A future SecretProvider may replace this storage without changing host or
-// provider metadata relationships.
+// ensureInlineSecret receives a write-only operational credential and stores it
+// using the AES-256-GCM SecretProvider. API responses only carry metadata.
 func (s *server) ensureInlineSecret(c *gin.Context, name, secretType string, existingID int64, value string) (int64, error) {
 	if strings.TrimSpace(value) == "" {
 		return existingID, nil
 	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(value), bcrypt.DefaultCost)
-	if err != nil {
-		return 0, err
-	}
 	if existingID > 0 {
-		_, err = s.db.Exec(`UPDATE secrets SET encrypted_value=?,status='configured',last_updated=UTC_TIMESTAMP() WHERE id=? AND organization_id=?`, hash, existingID, s.currentOrg(c))
-		return existingID, err
+		metadata, err := s.secrets.UpdateSecret(c.Request.Context(), existingID, []byte(value))
+		return metadata.ID, err
 	}
 	secretName := "inline-" + strings.ToLower(strings.ReplaceAll(strings.TrimSpace(name), " ", "-"))
-	_, err = s.db.Exec(`INSERT INTO secrets(organization_id,name,type,scope,status,encrypted_value,last_updated) VALUES(?,?,?,'organization','configured',?,UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE type=VALUES(type),status='configured',encrypted_value=VALUES(encrypted_value),last_updated=UTC_TIMESTAMP()`, s.currentOrg(c), secretName, secretType, hash)
-	if err != nil {
-		return 0, err
-	}
-	var id int64
-	err = s.db.QueryRow(`SELECT id FROM secrets WHERE organization_id=? AND name=?`, s.currentOrg(c), secretName).Scan(&id)
-	return id, err
+	metadata, err := s.secrets.CreateSecret(c.Request.Context(), providers.SecretInput{
+		OrganizationID: s.currentOrg(c), Name: secretName, Type: secretType, Scope: "organization", Value: []byte(value),
+	})
+	return metadata.ID, err
 }
 
 type runtimeHostRequestV032 struct {
@@ -83,7 +73,7 @@ func (s *server) listRuntimeHostsV032(c *gin.Context) {
 		var description sql.NullString
 		var last, inventory sql.NullTime
 		if rows.Scan(&id, &name, &hostname, &address, &port, &username, &auth, &credential, &socket, &binary, &version, &cpu, &memory, &storage, &allocatedCPU, &allocatedMemory, &allocatedStorage, &actualCPU, &actualMemory, &actualStorage, &runtimeCount, &containers, &status, &labels, &description, &last, &inventory) == nil {
-			out = append(out, gin.H{"id": id, "name": name, "hostname": hostname, "address": address, "ssh_port": port, "ssh_username": username, "auth_type": auth, "credential_reference_configured": credential.Valid, "docker_socket_path": socket, "docker_binary": binary, "docker_version": version, "cpu_total": cpu, "memory_total": memory, "storage_total": storage, "cpu_allocated": allocatedCPU, "memory_allocated": allocatedMemory, "storage_allocated": allocatedStorage, "cpu_actual": actualCPU, "memory_actual": actualMemory, "storage_actual": actualStorage, "runtime_count": runtimeCount, "container_count": containers, "status": status, "labels": phase3JSON(labels), "description": description.String, "last_seen": nullableTime(last), "last_inventory_at": nullableTime(inventory)})
+			out = append(out, gin.H{"id": id, "name": name, "hostname": hostname, "address": address, "ssh_port": port, "ssh_username": username, "auth_type": auth, "credential_status": s.credentialStatus(c.Request.Context(), credential), "credential_reference_configured": s.credentialStatus(c.Request.Context(), credential) == "configured", "docker_socket_path": socket, "docker_binary": binary, "docker_version": version, "cpu_total": cpu, "memory_total": memory, "storage_total": storage, "cpu_allocated": allocatedCPU, "memory_allocated": allocatedMemory, "storage_allocated": allocatedStorage, "cpu_actual": actualCPU, "memory_actual": actualMemory, "storage_actual": actualStorage, "runtime_count": runtimeCount, "container_count": containers, "status": status, "labels": phase3JSON(labels), "description": description.String, "last_seen": nullableTime(last), "last_inventory_at": nullableTime(inventory)})
 		}
 	}
 	c.JSON(http.StatusOK, gin.H{"data": out, "provider": "MockRuntimeHostProvider", "security": gin.H{"docker_socket_exposed": false, "credential_write_only": true}})
@@ -191,6 +181,18 @@ func (s *server) testRuntimeHostV032(c *gin.Context) {
 	if !ok {
 		return
 	}
+	var auth string
+	var credential sql.NullInt64
+	if s.db.QueryRow(`SELECT auth_type,credential_reference_id FROM runtime_hosts WHERE id=? AND organization_id=?`, id, s.currentOrg(c)).Scan(&auth, &credential) != nil {
+		failCode(c, 404, "runtime_hosts.not_found", nil)
+		return
+	}
+	if auth == "password" {
+		if err := s.decryptCredentialForIntegration(c.Request.Context(), credential); err != nil {
+			failCode(c, http.StatusConflict, "runtime_hosts.credential_unavailable", gin.H{"status": s.credentialStatus(c.Request.Context(), credential)})
+			return
+		}
+	}
 	_ = providers.MockRuntimeHostProvider{}
 	if _, err := s.db.Exec(`UPDATE runtime_hosts SET status='online',docker_version='mock-docker-27',cpu_actual=cpu_allocated,memory_actual=memory_allocated,storage_actual=storage_allocated,last_seen=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP() WHERE id=? AND organization_id=?`, id, s.currentOrg(c)); err != nil {
 		failCode(c, 400, "runtime_hosts.test_failed", nil)
@@ -249,7 +251,7 @@ func (s *server) runtimeHostDetailV032(c *gin.Context) {
 		failCode(c, 404, "runtime_hosts.not_found", nil)
 		return
 	}
-	value = gin.H{"id": id, "name": name, "hostname": hostname, "address": address, "ssh_port": port, "ssh_username": username, "auth_type": auth, "credential_reference_configured": credential.Valid, "docker_socket_path": socket, "docker_binary": binary, "docker_version": version, "cpu_total": cpu, "memory_total": memory, "storage_total": storage, "cpu_allocated": allocatedCPU, "memory_allocated": allocatedMemory, "storage_allocated": allocatedStorage, "cpu_actual": actualCPU, "memory_actual": actualMemory, "storage_actual": actualStorage, "runtime_count": count, "container_count": containers, "status": status, "labels": phase3JSON(labels), "description": description.String, "last_seen": nullableTime(last), "last_inventory_at": nullableTime(inventory), "runtimes": hosts}
+	value = gin.H{"id": id, "name": name, "hostname": hostname, "address": address, "ssh_port": port, "ssh_username": username, "auth_type": auth, "credential_status": s.credentialStatus(c.Request.Context(), credential), "credential_reference_configured": s.credentialStatus(c.Request.Context(), credential) == "configured", "docker_socket_path": socket, "docker_binary": binary, "docker_version": version, "cpu_total": cpu, "memory_total": memory, "storage_total": storage, "cpu_allocated": allocatedCPU, "memory_allocated": allocatedMemory, "storage_allocated": allocatedStorage, "cpu_actual": actualCPU, "memory_actual": actualMemory, "storage_actual": actualStorage, "runtime_count": count, "container_count": containers, "status": status, "labels": phase3JSON(labels), "description": description.String, "last_seen": nullableTime(last), "last_inventory_at": nullableTime(inventory), "runtimes": hosts}
 	c.JSON(200, gin.H{"data": value})
 }
 func (s *server) setRuntimeHostStatusV032(c *gin.Context) {

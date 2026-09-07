@@ -25,14 +25,15 @@ import (
 )
 
 type config struct {
-	dsn           string
-	port          string
-	migrationsDir string
-	adminPassword string
-	userPassword  string
-	demoMode      bool
-	cookieSecure  bool
-	allowedOrigin string
+	dsn             string
+	port            string
+	migrationsDir   string
+	adminPassword   string
+	userPassword    string
+	demoMode        bool
+	secretMasterKey string
+	cookieSecure    bool
+	allowedOrigin   string
 }
 
 type session struct {
@@ -84,16 +85,18 @@ type server struct {
 	sessions *sessionStore
 	runtime  providers.RuntimeProvider
 	hermes   hermes.Adapter
+	secrets  providers.SecretProvider
 }
 
 func main() {
 	cfg := config{
-		dsn:           env("DB_DSN", "hep:hep_password@tcp(mysql:3306)/hep?parseTime=true&charset=utf8mb4&loc=UTC"),
-		port:          env("PORT", "8080"),
-		migrationsDir: env("MIGRATIONS_DIR", "./migrations"),
-		demoMode:      envBool("HEP_DEMO_MODE", false),
-		cookieSecure:  envBool("COOKIE_SECURE", false),
-		allowedOrigin: env("ALLOWED_ORIGIN", "http://localhost:18080"),
+		dsn:             env("DB_DSN", "hep:hep_password@tcp(mysql:3306)/hep?parseTime=true&charset=utf8mb4&loc=UTC"),
+		port:            env("PORT", "8080"),
+		migrationsDir:   env("MIGRATIONS_DIR", "./migrations"),
+		demoMode:        envBool("HEP_DEMO_MODE", false),
+		secretMasterKey: env("HEP_SECRET_MASTER_KEY", ""),
+		cookieSecure:    envBool("COOKIE_SECURE", false),
+		allowedOrigin:   env("ALLOWED_ORIGIN", "http://localhost:18080"),
 	}
 	var err error
 	if cfg.adminPassword, err = demoSeedPassword("SEED_ADMIN_PASSWORD", cfg.demoMode, "ChangeMe-Admin-2026!"); err != nil {
@@ -123,6 +126,10 @@ func main() {
 	if err := seedV03Data(db, cfg.adminPassword, cfg.userPassword); err != nil {
 		log.Fatal(err)
 	}
+	secretProvider, err := newDatabaseSecretProvider(db, cfg.secretMasterKey)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	s := &server{
 		db:       db,
@@ -130,6 +137,7 @@ func main() {
 		sessions: newSessionStore(),
 		runtime:  providers.NewMockRuntimeProvider(),
 		hermes:   hermes.MockAdapter{},
+		secrets:  secretProvider,
 	}
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery(), s.securityHeaders, s.cors)

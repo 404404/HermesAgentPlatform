@@ -1,5 +1,6 @@
 import { createContext, ReactNode, useContext, useMemo, useState } from 'react'
 import { enUSOverrides, zhCNOverrides } from './i18nPatches'
+import { enUSCompletion, zhCNCompletion } from './i18nCompletion'
 
 export type Locale = 'en-US' | 'zh-CN'
 
@@ -35,7 +36,7 @@ const I18nContext = createContext<I18nValue | null>(null)
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(() => (localStorage.getItem('hep.locale') as Locale) || 'en-US')
   const setLocale = (next: Locale) => { setLocaleState(next); localStorage.setItem('hep.locale', next) }
-  const value = useMemo<I18nValue>(() => ({ locale, setLocale, t: (key, fallback) => (locale === 'zh-CN' ? (zhCNOverrides[key] || zhCNOverrides[key.replaceAll('.', '_')]) : enUSOverrides[key]) || dictionaries[locale][key] || dictionaries['en-US'][key] || fallback || key, formatDate: (value) => value ? new Date(value).toLocaleString(locale) : '—' }), [locale])
+  const value = useMemo<I18nValue>(() => ({ locale, setLocale, t: (key, fallback) => (locale === 'zh-CN' ? (zhCNCompletion[key] || zhCNCompletion[key.replaceAll('.', '_')] || zhCNOverrides[key] || zhCNOverrides[key.replaceAll('.', '_')]) : (enUSCompletion[key] || enUSCompletion[key.replaceAll('.', '_')] || enUSOverrides[key])) || dictionaries[locale][key] || dictionaries['en-US'][key] || fallback || key, formatDate: (value) => value ? new Date(value).toLocaleString(locale) : '—' }), [locale])
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
 }
 

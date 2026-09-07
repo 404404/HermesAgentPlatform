@@ -20,6 +20,8 @@ The local Demo seeds these accounts:
 
 Set `HEP_DEMO_MODE=true` only for a local Demo. In that mode, omitted password variables use the documented examples above. With `HEP_DEMO_MODE=false`, both password variables are mandatory and the backend refuses to start if either is missing. The backend stores bcrypt hashes only; on every Demo seed run it re-hashes the configured password for the seeded accounts, so an existing Demo database is reset to the configured credentials without ever storing plaintext.
 
+`HEP_SECRET_MASTER_KEY` is independently required for operational integration credentials. It must be exactly 32 bytes, or `base64:` followed by 32 decoded bytes. In this local Demo use the documented `.env` example only; replace it before any non-demo use.
+
 ## Phase 1
 
 - Local Account login with HttpOnly session cookie, double-submit CSRF token, restricted CORS and security headers.

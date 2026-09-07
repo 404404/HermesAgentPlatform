@@ -938,7 +938,7 @@ func (s *server) listModelProviders(c *gin.Context) {
 	if !s.requirePermission(c, "model_provider.read") {
 		return
 	}
-	rows, err := s.db.Query(`SELECT mp.id,mp.name,mp.type,mp.mode,mp.base_url,mp.auth_type,CASE WHEN mp.secret_reference_id IS NULL THEN 'not_configured' ELSE 'configured' END,mp.status,mp.description,mp.health_status,mp.last_tested_at,mp.last_sync_at,mp.created_at,mp.updated_at FROM model_providers mp WHERE mp.organization_id=1 ORDER BY mp.name`)
+	rows, err := s.db.Query(`SELECT mp.id,mp.name,mp.type,mp.mode,mp.base_url,mp.auth_type,CASE WHEN mp.secret_reference_id IS NULL THEN 'missing' WHEN sec.requires_reentry THEN 'requires_reentry' WHEN sec.status='configured' THEN 'configured' ELSE 'missing' END,mp.status,mp.description,mp.health_status,mp.last_tested_at,mp.last_sync_at,mp.created_at,mp.updated_at FROM model_providers mp LEFT JOIN secrets sec ON sec.id=mp.secret_reference_id WHERE mp.organization_id=1 ORDER BY mp.name`)
 	if err != nil {
 		failCode(c, 500, "providers.load_failed", nil)
 		return
@@ -2083,7 +2083,7 @@ func (s *server) systemHealth(c *gin.Context) {
 	} else {
 		checks = append(checks, gin.H{"name": "Database", "status": "down", "detail": "database unavailable"})
 	}
-	checks = append(checks, gin.H{"name": "Runtime Provider", "status": "healthy", "detail": "MockRuntimeProvider"}, gin.H{"name": "Hermes Adapter", "status": "healthy", "detail": "MockAdapter"}, gin.H{"name": "Model Gateway", "status": "unknown", "detail": "No gateway configured in Phase 2"}, gin.H{"name": "Knowledge Provider", "status": "healthy", "detail": "MockKnowledgeProvider"}, gin.H{"name": "Secret Provider", "status": "degraded", "detail": "MockSecretProvider; references only"})
+	checks = append(checks, gin.H{"name": "Runtime Provider", "status": "healthy", "detail": "MockRuntimeProvider"}, gin.H{"name": "Hermes Adapter", "status": "healthy", "detail": "MockAdapter"}, gin.H{"name": "Model Gateway", "status": "unknown", "detail": "No gateway configured in Phase 2"}, gin.H{"name": "Knowledge Provider", "status": "healthy", "detail": "MockKnowledgeProvider"}, gin.H{"name": "Secret Provider", "status": "healthy", "detail": "DatabaseSecretProvider · AES-256-GCM"})
 	c.JSON(200, gin.H{"data": checks})
 }
 func (s *server) listNotifications(c *gin.Context) {
