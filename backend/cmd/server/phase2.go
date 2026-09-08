@@ -116,7 +116,7 @@ func registerPhase2Routes(auth *gin.RouterGroup, s *server) {
 	auth.POST("/skill-versions/:id/files", s.upsertSkillFile)
 	auth.PUT("/skill-artifact-files/:id", s.updateSkillFile)
 	auth.DELETE("/skill-artifact-files/:id", s.deleteSkillFile)
-	auth.POST("/skill-versions/:id/submit", s.submitSkillVersion)
+	auth.POST("/skill-versions/:id/submit", s.submitSkillVersionV033Hotfix)
 	auth.POST("/skill-versions/:id/publish", s.publishSkillVersion)
 
 	// Knowledge content system
@@ -140,7 +140,7 @@ func registerPhase2Routes(auth *gin.RouterGroup, s *server) {
 	auth.POST("/risk-events/:id/status", s.setRiskEventStatus)
 	auth.GET("/approval-requests", s.listApprovalRequests)
 	auth.POST("/approval-requests", s.createApprovalRequest)
-	auth.POST("/approval-requests/:id/decision", s.decideApproval)
+	auth.POST("/approval-requests/:id/decision", s.decideApprovalV033Hotfix)
 	auth.GET("/settings", s.getSettings)
 	auth.PUT("/settings", s.updateSettings)
 	auth.GET("/system-health", s.systemHealth)

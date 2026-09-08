@@ -14,32 +14,41 @@ import (
 // v0.3.3 extends the existing control-plane data. It intentionally does not
 // introduce workspace copies of Models, Profiles, Skills or Knowledge.
 func registerV033Routes(auth *gin.RouterGroup, s *server) {
-	auth.GET("/profiles/:id/configuration", s.profileConfigurationGetV033)
-	auth.PUT("/profiles/:id/configuration", s.updateProfileConfigurationV033)
+	auth.GET("/profiles/:id/configuration", s.profileConfigurationGetV033Hotfix)
+	auth.PUT("/profiles/:id/configuration", s.updateProfileConfigurationV033Hotfix)
 	auth.GET("/users/:id/runtime-summary", s.userRuntimeSummaryV033)
 	auth.PUT("/runtimes/:id/desired-configuration", s.updateRuntimeDesiredConfigurationV033)
 
 	auth.GET("/skill-review-workflows", s.listSkillReviewWorkflowsV033)
-	auth.POST("/skill-review-workflows", s.saveSkillReviewWorkflowV033)
-	auth.PUT("/skill-review-workflows/:id", s.saveSkillReviewWorkflowV033)
-	auth.GET("/skill-submissions/:id/timeline", s.skillSubmissionTimelineV033)
-	auth.POST("/skill-submissions/:id/steps/:step_id/decision", s.decideSkillReviewStepV033)
+	auth.GET("/skill-review-workflows/:id", s.skillReviewWorkflowDetailV033Hotfix)
+	auth.POST("/skill-review-workflows", s.saveSkillReviewWorkflowV033Hotfix)
+	auth.PUT("/skill-review-workflows/:id", s.saveSkillReviewWorkflowV033Hotfix)
+	auth.GET("/skill-submissions/:id/timeline", s.skillSubmissionTimelineV033Hotfix)
+	auth.POST("/skill-submissions/:id/steps/:step_id/decision", s.decideSkillReviewStepV033Hotfix)
 
-	auth.GET("/knowledge-bases/:id/user-policy", s.knowledgeUserPolicyV033)
-	auth.PUT("/knowledge-bases/:id/user-policy", s.saveKnowledgeUserPolicyV033)
-	auth.POST("/knowledge-bases/:id/import/qa", s.importKnowledgeQAV033)
-	auth.POST("/knowledge-bases/:id/import/markdown", s.importKnowledgeMarkdownV033)
-	auth.GET("/knowledge-import-jobs", s.listKnowledgeImportJobsV033)
+	auth.GET("/knowledge-bases/:id/user-policy", s.knowledgeUserPolicyV033Hotfix)
+	auth.PUT("/knowledge-bases/:id/user-policy", s.saveKnowledgeUserPolicyV033Hotfix)
+	auth.POST("/knowledge-bases/:id/import/qa/preview", s.knowledgeQAImportPreviewV033Hotfix)
+	auth.POST("/knowledge-bases/:id/import/qa", s.importKnowledgeQAV033Hotfix)
+	auth.POST("/knowledge-bases/:id/import/markdown/preview", s.knowledgeMarkdownImportPreviewV033Hotfix)
+	auth.POST("/knowledge-bases/:id/import/markdown", s.importKnowledgeMarkdownV033Hotfix)
+	auth.GET("/knowledge-bases/:id/import-jobs", s.listKnowledgeImportJobsV033Hotfix)
+	auth.GET("/knowledge-import-jobs", s.listKnowledgeImportJobsV033Hotfix)
 
-	auth.GET("/me/agent-groups", s.workspaceAgentGroupsV033)
-	auth.PUT("/me/agents/:id/configuration", s.updateWorkspaceAgentConfigurationV033)
-	auth.GET("/me/skills/market", s.workspaceSkillMarketV033)
-	auth.POST("/me/skills/:id/install", s.installWorkspaceSkillV033)
-	auth.GET("/me/knowledge/v033", s.workspaceKnowledgeV033)
-	auth.GET("/me/conversations/:id/models", s.conversationModelsV033)
-	auth.PUT("/me/conversations/:id/model", s.setConversationModelV033)
-	auth.POST("/me/messages/:id/regenerate", s.regenerateWorkspaceMessageV033)
-	auth.POST("/me/messages/:id/feedback", s.workspaceMessageFeedbackV033)
+	auth.GET("/me/agent-groups", s.workspaceAgentGroupsV033Hotfix)
+	auth.PUT("/me/agents/:id/configuration", s.updateWorkspaceAgentConfigurationV033Hotfix)
+	auth.GET("/me/skills/market", s.workspaceSkillMarketV033Hotfix)
+	auth.POST("/me/skills/:id/install", s.installWorkspaceSkillV033Hotfix)
+	auth.GET("/me/knowledge/v033", s.workspaceKnowledgeV033Hotfix)
+	auth.GET("/me/knowledge/:id/items", s.workspaceKnowledgeItemsV033Hotfix)
+	auth.POST("/me/knowledge/:id/items", s.createWorkspaceKnowledgeItemV033Hotfix)
+	auth.PUT("/me/knowledge-items/:id", s.updateWorkspaceKnowledgeItemV033Hotfix)
+	auth.DELETE("/me/knowledge-items/:id", s.deleteWorkspaceKnowledgeItemV033Hotfix)
+	auth.GET("/me/conversations/:id/models", s.conversationModelsV033Hotfix)
+	auth.PUT("/me/conversations/:id/model", s.setConversationModelV033Hotfix)
+	auth.POST("/me/messages/:id/regenerate", s.regenerateWorkspaceMessageV033Hotfix)
+	auth.POST("/me/messages/:id/feedback", s.workspaceMessageFeedbackV033Hotfix)
+	auth.POST("/me/messages/:id/select-candidate", s.selectWorkspaceMessageCandidateV033Hotfix)
 }
 
 func v033JSON(raw string) []int64 {
@@ -868,7 +877,7 @@ func (s *server) workspaceMessageFeedbackV033(c *gin.Context) {
 	c.JSON(200, gin.H{"data": gin.H{"message_id": id, "rating": req.Rating}})
 }
 
-func seedV033Data(db *sql.DB) error {
+func seedV033DataLegacy(db *sql.DB) error {
 	var adminID int64
 	_ = db.QueryRow("SELECT id FROM users WHERE username='admin'").Scan(&adminID)
 	_, err := db.Exec("INSERT INTO skill_review_workflows(organization_id,name,status,description,created_by) VALUES(1,'Default Skill Review','active','Automated check, security review and publishing approval.',?) ON DUPLICATE KEY UPDATE status='active',description=VALUES(description)", nullableID(adminID))

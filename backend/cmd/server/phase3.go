@@ -59,7 +59,7 @@ func registerPhase3Routes(auth *gin.RouterGroup, s *server) {
 	auth.GET("/audit-catalog", s.auditCatalog)
 	auth.GET("/dashboard/v3", s.dashboardV21)
 	auth.GET("/executions", s.listExecutions)
-	auth.POST("/approval-requests/:id/decision-v2", s.decideApprovalV21)
+	auth.POST("/approval-requests/:id/decision-v2", s.decideApprovalV033Hotfix)
 	auth.POST("/executions", s.createExecution)
 	auth.GET("/executions/:id", s.executionDetail)
 }
@@ -577,8 +577,8 @@ func (s *server) effectiveConfigurationData(profileID int64) gin.H {
 	}
 	var deptID, orgID int64
 	_ = s.db.QueryRow("SELECT organization_id,COALESCE(department_id,0) FROM users WHERE id=?", uid).Scan(&orgID, &deptID)
-	skills := s.effectiveSkills(profileID, uid, orgID, deptID, templateID, templateName)
-	knowledge := s.effectiveKnowledgeSources(profileID, uid, orgID, deptID, templateID, templateName)
+	skills := s.effectiveSkillsV033Completion(profileID, uid, orgID, deptID, templateID, templateName)
+	knowledge := s.effectiveKnowledgeV033Completion(profileID, uid, orgID, deptID, templateID, templateName)
 	return gin.H{"id": profileID, "profile_type": profileType, "profile_name": profileName, "template": gin.H{"id": nullableSQLID(templateID), "name": templateName, "version": s.templateVersion(templateID)}, "source_roles": s.profileSourceRolesData(uid), "model": model, "skills": skills, "knowledge": knowledge}
 }
 func (s *server) templateVersion(id sql.NullInt64) any {

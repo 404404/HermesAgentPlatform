@@ -48,9 +48,10 @@ func registerV03Routes(auth *gin.RouterGroup, s *server) {
 	auth.GET("/me/agents/:id", s.workspaceAgentDetail)
 	auth.PUT("/me/agents/:id", s.updatePersonalAgent)
 	auth.DELETE("/me/agents/:id", s.deletePersonalAgent)
-	auth.GET("/me/models", s.workspaceModels)
-	auth.GET("/me/skills", s.workspaceSkills)
-	auth.GET("/me/knowledge", s.workspaceKnowledge)
+	auth.GET("/me/models", s.workspaceModelsV033Hotfix)
+	// Canonical Workspace skills are profile-aware effective data, not a global catalog.
+	auth.GET("/me/skills", s.workspaceSkillMarketV033Hotfix)
+	auth.GET("/me/knowledge", s.workspaceKnowledgeV033Hotfix)
 	auth.GET("/me/channels", s.workspaceChannels)
 	auth.POST("/me/channels", s.createWorkspaceChannel)
 	auth.PUT("/me/channels/:id", s.updateWorkspaceChannel)
@@ -62,8 +63,8 @@ func registerV03Routes(auth *gin.RouterGroup, s *server) {
 	auth.GET("/me/self-service-policy", s.workspaceSelfServicePolicy)
 	auth.GET("/me/conversations", s.listConversations)
 	auth.POST("/me/conversations", s.createConversation)
-	auth.GET("/me/conversations/:id/messages", s.listConversationMessages)
-	auth.POST("/me/conversations/:id/messages", s.createConversationMessage)
+	auth.GET("/me/conversations/:id/messages", s.listConversationMessagesV033Hotfix)
+	auth.POST("/me/conversations/:id/messages", s.createConversationMessageV033Hotfix)
 
 	// Admin-only v0.3 management surfaces. Existing handlers are protected by
 	// requirePermission, which also enforces the admin console boundary.
