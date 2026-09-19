@@ -19,3 +19,10 @@ The backend RiskEvaluator, role checks and lifecycle orchestration are control-p
 ### v0.3.2 infrastructure boundary
 
 Runtime Host onboarding stores only local Docker socket paths as future SSH/Node-Agent instructions. It never exposes a TCP Docker endpoint and this release does not perform SSH, Docker, Hermes provisioning or container control. `MockRuntimeHostProvider` verifies the intended API contract only.
+
+
+## 简体中文（当前安全边界）
+
+本地密码使用 bcrypt；Session Cookie 为 HttpOnly；变更使用双提交 CSRF；CORS 仅允许 ALLOWED_ORIGIN；后端 RBAC 与 /me 资源归属均在服务端执行。运行凭据由 SecretProvider 使用 AES-256-GCM 加密，并且只可写入；审计在应用语义上追加保存。
+
+用户 Runtime 是未来用户隔离边界，Agent Profile 不是。Demo 不打开 SSH、不访问 Docker、不挂载宿主机 Socket、不使用 privileged/Docker-in-Docker。它仍使用内存 Session 和 Mock Provider，未实现 MFA、限流、生产 SSO、Vault、SIEM、WORM、生产 Sandbox 或真实 Hermes 执行。

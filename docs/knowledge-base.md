@@ -25,3 +25,12 @@ Workspace Knowledge is calculated from the current user's effective Agent Profil
 ## v0.3.3 content workspace
 
 Knowledge management uses a master-detail layout: the selected Knowledge Base is an administrative context, while item editing stays inside that context. Q&A and Markdown imports produce explicit import-job records. Workspace reads the same Knowledge Bases through a per-user access policy (query_only, read, contribute or manage); it does not maintain a duplicate user content store.
+
+
+## 简体中文（当前知识库）
+
+知识库属于企业内容，与 Hermes Personal Memory 分离。内容类型包括 background、qa、markdown、procedure；编辑产生版本记录，发布仅通过 MockKnowledgeProvider 表示索引状态。
+
+绑定目标支持组织、部门、角色、Profile、Agent Template。访问策略支持 organization、department、role、user 以及 query_only、read、contribute、manage；用户策略优先于其他策略。工作台读取同一套控制平面数据：无权资源不出现，query_only 不返回正文，contribute/manage 才可变更允许的内容。
+
+Q&A CSV 支持 BOM、引号、逗号与换行；Markdown 支持多文件。均采用解析、校验预览、显式确认、事务化创建内容/版本/导入任务的流程，并分别返回重复、部分失败与失败。没有 PDF/Office 解析、Embedding 或向量检索。

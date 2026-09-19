@@ -25,3 +25,10 @@ Workspace activity and Chat messages are not Control Plane Audit. Administrative
 ## v0.3.3 governed Skill workflow
 
 Skill review workflows, ordered review steps and review instances are persisted separately from generic approvals. Their timeline is a Skill governance audit trail. Chat feedback and ordinary chat history are Workspace operational records, not Control Plane Audit events; administrative configuration changes and high-risk decisions remain auditable.
+
+
+## 简体中文（当前审计与风险）
+
+审计日志记录身份、组织、RBAC、模板、Runtime、模型、Skills、知识库、审批、设置和导出等 Control Plane 操作，属于应用语义上的追加记录；它不等同于 Execution Log 或 Workspace Chat 历史。
+
+审计筛选在后端执行，CSV/JSON 导出使用同一筛选条件并产生导出审计事件。普通用户不可导出全局审计。高风险执行或管理变更可创建审批请求；Demo 的 RiskEvaluator 是后端规则引擎，风险等级、分数和原因不是前端写死值。Skill 审核是独立的有序专用工作流。

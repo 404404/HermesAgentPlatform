@@ -30,3 +30,10 @@ Migration `005_v022_relationship_management.sql` evolves the schema without edit
 ### v0.3.2 storage evolution
 
 Migration `007_v032_runtime_host_infrastructure.sql` adds Runtime Host connection metadata, actual/allocated mock metrics, container count and description. Migration `008_v032_runtime_host_auth_normalization.sql` maps the historical demo `secret_reference` auth marker to supported `password`. `runtimes.host_id` remains the physical storage column for backward compatibility; `runtime_host_id` is the public API/domain name. Migration `009_v032_operational_secret_encryption.sql` adds `ciphertext`, `nonce`, `algorithm`, `key_version` and `requires_reentry` to `secrets`. New operational credentials use AES-256-GCM; old bcrypt-only operational values are cleared and marked `requires_reentry`. Provider and host tables retain only secret references, never plaintext columns.
+
+
+## 简体中文（当前存储）
+
+HEP 使用 MySQL 8，Migration 位于 backend/migrations，执行状态保存在 schema_migrations。启动时按文件名字典序应用缺失 Migration，已有 Migration 不会被改写。
+
+核心域包括组织/RBAC、Profile/Runtime/Runtime Host、模型和 Secrets、版本化 Skills、知识库内容/策略/导入任务、执行/审批/审计/用量，以及 Workspace Chat。v0.3.3 的 011–015 Migration 增加了稳定知识策略主体键及备份/冲突记录、Skill 审核快照、Profile Skill 安装、Profile-Runtime 关联、聊天候选选择和反馈评论。供应商与主机表只保存 Secret 引用和元数据，不保存明文凭据。

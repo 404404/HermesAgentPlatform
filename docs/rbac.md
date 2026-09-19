@@ -29,3 +29,9 @@ The three administrative roles remain separate: System Administrator handles ide
 ## v0.3 access surfaces
 
 One local session opens Workspace for every account. Admin Console access is checked in the backend by administrative role; hiding a menu item is not the authorization boundary. Ordinary users can use only session-scoped me routes and cannot access existing administrative handlers through a crafted URL. Business seed users are admin, user01 and user02; internal security and audit accounts are marked system accounts.
+
+## 简体中文（当前 RBAC）
+
+HEP 只使用 role_bindings，不使用 users.role。Binding 范围可为 global、organization、department、user、profile；用户详情和角色详情读写同一套 Binding，因此双向关系一致。
+
+系统管理员负责用户、部门、Runtime 和常规设置；安全管理员负责角色、权限和安全策略；审计管理员负责审计和导出；紧急超级管理员是高风险紧急例外账号。后端权限检查才是授权边界，隐藏菜单不构成安全控制。受保护管理员角色不能自助提升，高风险变更可进入审批。工作台权限与管理控制台资格分离。

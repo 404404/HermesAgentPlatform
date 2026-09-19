@@ -46,3 +46,12 @@ The model catalog separates logical Models, Model Providers and Provider Models.
 ## v0.3.3 overlays and conversations
 
 Agent Profile retains its managed template baseline and can carry explicit auxiliary-model, optional-Skill and Knowledge override IDs. These are configuration overlays, not a second template relationship. User Runtime keeps desired resource/configuration values distinct from observed provider state. Chat Conversation and Chat Message are user-scoped operational records; Message Feedback and regeneration preserve a clear future Hermes chat-provider boundary.
+
+
+## 简体中文（当前领域模型）
+
+用户拥有工作台记录、Agent Profile 和通常一个用户运行环境；用户属于部门，获得范围化 Role Binding，也可得到显式 Agent Template 分配。部门提供成员、Runtime 策略和知识范围；Role 提供权限并可分配 Agent Template。
+
+Agent Template 定义模型、Skills、知识和受管策略；Agent Profile 是用户实际拥有的未来 Hermes Profile；Runtime Template 仅定义 CPU、内存、存储、并发、Provider、Class 和网络策略；User Runtime 是未来用户级运行资源；Runtime Host 是物理机/VM 清单。
+
+模板命中会叠加显式用户、Role 和部门来源；重复模板只生成一个受管 Profile，但保留所有来源。最终知识访问基于绑定和显式策略计算，用户策略优先于 Role、部门和组织策略。Execution、Approval、Audit、Activity 是不同的领域记录。

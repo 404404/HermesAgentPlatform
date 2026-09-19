@@ -53,3 +53,14 @@ The consolidated UI uses `GET /users` with q, department_id, role_id, status, ru
 ### v0.3.2 infrastructure API
 
 `GET/POST /runtime-hosts`, `GET/PUT/DELETE /runtime-hosts/:id`, `POST /runtime-hosts/:id/test`, `POST /runtime-hosts/:id/inventory`, and `POST /runtime-hosts/:id/status` manage physical/VM inventory behind `runtime.manage`. Credential payload fields are write-only. `GET /runtimes-v2` and `GET /runtimes/:id/detail` expose `runtime_host_id`; API consumers must not construct a second host/runtime relationship. Model Provider create/update accepts write-only `credential` in the existing `/model-providers` API while responses expose only configuration status.
+
+
+## 简体中文（当前 API）
+
+所有接口均以 /api/v1 为前缀。登录后通过 HttpOnly Session 鉴权；所有变更请求还需携带 hep_csrf Cookie 对应的 X-CSRF-Token。成功响应使用 { "data": ... }，较新的接口使用 error_code 和 message_params 供前端本地化。
+
+- 身份：/auth/login、/auth/logout、/auth/me、/admin/access。
+- 管理端：组织用户、RBAC、Agent Profile/Template、Runtime/Runtime Host/Template、模型供应商、Skills、知识库、执行、审批、审计、配额和设置。
+- 工作台：/me、/me/agents、/me/models、/me/skills、/me/knowledge、/me/channels、/me/usage，以及 /me/conversations 和消息候选/反馈接口。
+- Runtime Host 和 Model Provider 的 credential 为只写入字段；读取结果仅显示配置状态。
+- /me 路由只表示当前登录用户，不能通过参数冒充其他用户。

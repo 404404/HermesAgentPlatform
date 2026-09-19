@@ -35,3 +35,10 @@ Credentials are entered inline where their owning resource is created (for examp
 ## v0.3.3 action and language standard
 
 ActionCell now renders textual View, Edit and More controls consistently in right-sticky Actions columns; status remains the optional leading switch and destructive commands remain inside More. Browser language selection uses a persisted explicit choice first and otherwise detects a Chinese browser locale before falling back to en-US. New UI strings must be present in both catalogs; npm run i18n:audit verifies parity.
+
+
+## 简体中文（当前 UI 规范）
+
+每个关系只能使用一套后端绑定数据源；不得维护前端重复关系。表格主名称进入详情，最右固定操作列使用按需状态、View、Edit、More，危险操作放入 More。新增/编辑使用响应式 Modal，关联选择使用可搜索多选和 +N 关系标签，未保存修改必须确认。
+
+Header、Sidebar、Content 独立滚动；Header 负责刷新、通知、语言和用户菜单。列表必须有 Loading、Error/Retry 与 Empty State，支持时通过 URL Query 保留筛选。所有用户可见文字必须同时维护 en-US 与 zh-CN，并运行 npm run i18n:audit。

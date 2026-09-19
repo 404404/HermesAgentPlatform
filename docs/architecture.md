@@ -43,3 +43,12 @@ Runtime Hosts hold non-secret inventory and credential references. No TCP Docker
 ## v0.3.3 admin and workspace usability
 
 v0.3.3 preserves the one Control Plane data set while adding profile configuration overlays, desired Runtime configuration and persisted Workspace Chat artifacts. The Admin Console owns global configuration. Workspace reads only session-user effective resources. Chat Conversation, Message and Feedback persistence is provider-agnostic; MockChatProvider remains the current adapter.
+
+
+## 简体中文（当前架构）
+
+HEP 是独立企业控制平面，负责身份、组织、角色绑定、Agent/Runtime 配置、治理、设置和审计；不会修改 Hermes 上游。Admin Console 管理全局记录，Workspace 只读取当前 Session 用户的有效资源。
+
+HermesAdapter、RuntimeProvider、RuntimeHostProvider、ModelProvider、KnowledgeProvider、NotificationProvider 与 ChatProvider 都是可替换接口，当前均为 Mock。SecretProvider 使用 AES-256-GCM 将运行凭据与资源元数据分离，读取接口只返回状态。
+
+用户运行环境是未来用户级隔离资源；Agent Profile 是其中的用户配置。运行主机是物理机/VM 清单，不是用户 Runtime。Agent Template 定义行为，Runtime Template 定义基础设施，二者不得混用。Demo 不打开 Docker Socket、不执行 SSH、不创建 Hermes，也不执行任意代码。
