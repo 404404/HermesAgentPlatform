@@ -1,0 +1,101 @@
+import { useEffect, useState } from 'react'
+import { Button, Card, Form, Input, InputNumber, Modal, Select, Space, Table, Tabs, Tag, message } from 'antd'
+import { EditOutlined, ReloadOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
+import { api } from './api/client'
+import { RuntimesV21 } from './DomainManagement'
+import { useI18n } from './i18n'
+import { EntityMultiSelect, ResponsiveFormGrid, TableActions } from './UxComponents'
+import { ActionCell } from './ActionCell'
+
+function V03PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
+  return <div className="page-heading"><div><h1 className="page-title">{title}</h1>{subtitle && <div className="page-subtitle">{subtitle}</div>}</div>{action}</div>
+}
+
+function V03Status({ value }: { value?: string }) {
+  const { t } = useI18n()
+  const normalized = value || 'unknown'
+  const color = ['active', 'healthy', 'online', 'running', 'connected'].includes(normalized) ? 'green' : ['disabled', 'error', 'down', 'failed'].includes(normalized) ? 'red' : 'gold'
+  return <Tag color={color}>{t('enum.' + normalized, normalized.replaceAll('_', ' '))}</Tag>
+}
+
+export function ModelsV03() {
+  const { t } = useI18n()
+  const [models, setModels] = useState<any[]>([])
+  const [providers, setProviders] = useState<any[]>([])
+  const [providerModels, setProviderModels] = useState<any[]>([])
+  const [editing, setEditing] = useState<any>()
+  const [open, setOpen] = useState(false)
+  const [error, setError] = useState<unknown>()
+  const [form] = Form.useForm()
+  const providerID = Form.useWatch('provider_id', form)
+
+  const load = async () => {
+    try {
+      const [modelData, providerData] = await Promise.all([api.get<any[]>('/models'), api.get<any[]>('/model-providers')])
+      setModels(modelData)
+      setProviders(providerData)
+    } catch (cause) { setError(cause) }
+  }
+  useEffect(() => { void load() }, [])
+  useEffect(() => {
+    if (!providerID) { setProviderModels([]); return }
+    api.get<any[]>(`/provider-models?provider_id=${providerID}`).then(setProviderModels).catch(setError)
+  }, [providerID])
+  const close = () => { setOpen(false); setEditing(undefined); form.resetFields() }
+  const openEditor = (model?: any) => { setEditing(model); form.resetFields(); if (model) form.setFieldsValue(model); setOpen(true) }
+  return <>
+    <V03PageHeader title={t('models')} subtitle={t('modelBoundary')} action={<Button type="primary" onClick={() => openEditor()}>{t('create')}</Button>} />
+    {error && <Card size="small" type="inner" style={{ marginBottom: 16 }}><Tag color="red">{(error as Error).message || t('errorFallback')}</Tag></Card>}
+    <Card className="content-card"><Table rowKey="id" dataSource={models} scroll={{ x: 1050 }} columns={[
+      { title: t('name'), render: (_: unknown, row: any) => <div><b>{row.display_name}</b><div className="muted">{row.name}</div></div> },
+      { title: t('providers'), render: (_: unknown, row: any) => row.provider_name || row.provider || '—' },
+      { title: t('upstream'), render: (_: unknown, row: any) => row.provider_model_display || row.upstream_model || '—' },
+      { title: t('status'), render: (_: unknown, row: any) => <V03Status value={row.status} /> },
+      { title: t('actions'), fixed: 'right', render: (_: unknown, row: any) => <TableActions onEdit={() => openEditor(row)} /> },
+    ]} /></Card>
+    <Modal title={editing ? t('edit') : t('create')} open={open} onCancel={close} footer={null} width={720}>
+      <Form form={form} layout="vertical" onFinish={async (values) => { try { const payload = { ...values, provider: providers.find((item) => item.id === values.provider_id)?.name || values.provider || '', upstream_model: providerModels.find((item) => item.id === values.provider_model_id)?.upstream_model || values.upstream_model || '' }; editing ? await api.put(`/models/${editing.id}`, payload) : await api.post('/models', payload); message.success(t('saved')); close(); await load() } catch (cause) { setError(cause) } }}>
+        <ResponsiveFormGrid>
+          <Form.Item name="name" label={t('name')} rules={[{ required: !editing }]}><Input disabled={!!editing} /></Form.Item>
+          <Form.Item name="display_name" label={t('displayName')} rules={[{ required: true }]}><Input /></Form.Item>
+          <Form.Item name="provider_id" label={t('providers')} rules={[{ required: true }]}><Select showSearch optionFilterProp="label" options={providers.map((item) => ({ value: item.id, label: `${item.name} · ${item.mode}` }))} /></Form.Item>
+          <Form.Item name="provider_model_id" label={t('providerModels')}><Select allowClear showSearch optionFilterProp="label" options={providerModels.map((item) => ({ value: item.id, label: `${item.display_name} · ${item.upstream_model}` }))} onChange={(value) => { const selected = providerModels.find((item) => item.id === value); if (selected && !form.getFieldValue('display_name')) form.setFieldValue('display_name', selected.display_name) }} /></Form.Item>
+          <Form.Item name="upstream_model" label={t('upstream')}><Input /></Form.Item>
+          <Form.Item name="status" label={t('status')} initialValue="active"><Select options={['active', 'disabled'].map((value) => ({ value, label: t("enum." + value, value) }))} /></Form.Item>
+          <Form.Item name="cost_class" label={t('costClass')}><Input /></Form.Item>
+          <Form.Item name="data_classification" label={t('dataClassification')}><Input /></Form.Item>
+          <Form.Item name="description" label={t('description')}><Input.TextArea /></Form.Item>
+        </ResponsiveFormGrid>
+        <Button type="primary" htmlType="submit" block>{t('save')}</Button>
+      </Form>
+    </Modal>
+  </>
+}
+
+export function ModelProvidersV03() {
+  const { t } = useI18n()
+  const [providers, setProviders] = useState<any[]>([])
+  const [providerModels, setProviderModels] = useState<any[]>([])
+  const [secrets, setSecrets] = useState<any[]>([])
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<any>()
+  const [form] = Form.useForm()
+  const [error, setError] = useState<unknown>()
+  const load = async () => { try { const [p, m] = await Promise.all([api.get<any[]>('/model-providers'), api.get<any[]>('/provider-models')]); setProviders(p); setProviderModels(m) } catch (cause) { setError(cause) } }
+  useEffect(() => { void load() }, [])
+  return <>
+    <V03PageHeader title={t('providers')} subtitle={t('modelModes')} action={<Button type="primary" onClick={() => { setEditing(undefined); form.resetFields(); setOpen(true) }}>{t('create')}</Button>} />
+    {error && <Card size="small" type="inner" style={{ marginBottom: 16 }}><Tag color="red">{(error as Error).message || t('errorFallback')}</Tag></Card>}
+    <Tabs items={[
+      { key: 'providers', label: t('providers'), children: <Card className="content-card"><Table rowKey="id" dataSource={providers} scroll={{ x: 1100 }} columns={[
+        { title: t('name'), dataIndex: 'name' }, { title: t("type"), render: (_: unknown, row: any) => t("enum." + row.type, row.type) }, { title: t("mode"), render: (_: unknown, row: any) => t("enum." + row.mode, row.mode) }, { title: t('baseUrl'), dataIndex: 'base_url' },
+        { title: t('secret'), render: (_: unknown, row: any) => <V03Status value={row.secret_status} /> }, { title: t('health'), render: (_: unknown, row: any) => <V03Status value={row.health_status} /> },
+        { title: t('actions'), fixed: 'right', render: (_: unknown, row: any) => <ActionCell onEdit={() => { setEditing(row); form.setFieldsValue(row); setOpen(true) }} moreItems={[{ key: 'test', label: t('testConnection'), onClick: async () => { await api.post("/model-providers/" + row.id + "/test", {}); message.success(t('providerTested')); await load() } }, { key: 'sync', label: t('syncModels'), onClick: async () => { await api.post("/model-providers/" + row.id + "/sync", {}); message.success(t('synced')); await load() } }]} /> },
+      ]} /></Card> },
+      { key: 'models', label: t('providerModels'), children: <Card className="content-card"><Table rowKey="id" dataSource={providerModels} columns={[{ title: t('providers'), dataIndex: 'provider' }, { title: t('name'), dataIndex: 'display_name' }, { title: t('upstream'), dataIndex: 'upstream_model' }, { title: t('status'), render: (_: unknown, row: any) => <V03Status value={row.status} /> }, { title: t('syncStatus'), dataIndex: 'sync_status' }]} /></Card> },
+    ]} />
+    <Modal title={editing ? t('edit') : t('providers')} open={open} onCancel={() => { setOpen(false); setEditing(undefined); form.resetFields() }} footer={null} width={720}><Form form={form} layout="vertical" onFinish={async (values) => { try { editing ? await api.put('/model-providers/' + editing.id, values) : await api.post('/model-providers', values); message.success(t(editing ? 'saved' : 'created')); setOpen(false); setEditing(undefined); form.resetFields(); await load() } catch (cause) { setError(cause) } }}><ResponsiveFormGrid><Form.Item name="name" label={t('name')} rules={[{ required: true }]}><Input /></Form.Item><Form.Item name="type" label={t('type')} initialValue="custom"><Select options={['openai', 'openrouter', 'google', 'nous', 'custom', 'enterprise_gateway'].map((value) => ({ value, label: t("enum." + value, value) }))} /></Form.Item><Form.Item name="mode" label={t('mode')} initialValue="hermes_native"><Select options={[{ value: 'hermes_native', label: t('hermesNative') }, { value: 'enterprise_gateway', label: t('enterpriseGateway') }, { value: 'custom_gateway', label: t('customGateway') }]} /></Form.Item><Form.Item name="base_url" label={t('baseUrl')}><Input /></Form.Item><Form.Item name="auth_type" label={t('authType')} initialValue="api_key"><Select options={[{ value: 'api_key', label: t('apiKey') }, { value: 'token', label: t('apiToken') }]} /></Form.Item><Form.Item name="credential" label={t('apiKey')} extra={editing?.secret_status === 'requires_reentry' ? t('credentialReentryHint') : editing?.secret_status === 'configured' ? t('credentialConfiguredHint') : undefined}><Input.Password autoComplete="new-password" placeholder={editing?.secret_status === 'configured' ? t('leaveBlankUnchanged') : undefined} /></Form.Item><Form.Item name="description" label={t('description')}><Input.TextArea /></Form.Item></ResponsiveFormGrid><Button type="primary" htmlType="submit" block>{t('save')}</Button></Form></Modal>
+  </>
+}
+
+export function RuntimeManagementV03() { return <RuntimesV21 /> }

@@ -1,0 +1,36 @@
+# Runtime lifecycle
+
+One **User Runtime** represents one user-level Hermes runtime resource. Multiple Agent Profiles can run inside that runtime; a Profile is not a user isolation boundary. `MockRuntimeProvider` owns only the Demo state and no container has a host Docker Socket or privileged mode.
+
+Runtime records include CPU, memory, storage, profile and concurrency limits, image version, provider/class, network policy, auto-start and auto-suspend. Runtime Templates provide Lightweight, Standard, Developer and Heavy presets. Settings select `Automatic` or `Manual` provisioning:
+
+- Automatic applies the department/default template when a user becomes active and assigns matching managed Profile Templates.
+- Manual leaves the resource `not_provisioned` until an administrator selects a user/template and provisions it.
+
+Lifecycle orchestration is kept in the service layer. Suspension, disablement and archival stop the runtime and disable managed Profiles. High-risk resource increases create approval requests for non-break-glass actors.
+
+Production Hermes integration should be asynchronous, idempotent and reconciled through an adapter/outbox; this Demo deliberately stops at a resource record.
+
+
+## v0.2.1 runtime management
+
+Runtime Template contains infrastructure fields only: CPU, memory, storage, profile limit, concurrent jobs, provider, class, network policy and status. Agent behavior belongs to Agent Template and Profile, not Runtime Template. Runtime exposes desired status separately from observed status and records provider events. Resources can be edited from Runtime detail; increases are routed to the approval workflow for ordinary administrators. Start, Stop and Restart are lifecycle controls. Emergency Kill Switch is a separate security action that requires a reason, disables new work, cancels demo executions, creates a Critical Audit event and sends a notification.
+## v0.2.2 policy binding and management UX
+
+Runtime Template contains infrastructure fields only. Role and Department policy bindings are stored in `runtime_template_bindings` with `binding_priority`; the editor updates existing bindings through a scoped API. Resolution never silently chooses between equal-priority different templates and reports a conflict for administrator action. User Runtime shows desired and observed status, Profiles, Effective Skills, Executions, Resources and Controls. Emergency Kill Switch remains distinct from Stop and requires a reason, security permission, Critical Audit event and notification.
+
+
+## v0.3 runtime hosts
+
+Runtime Management exposes User Runtimes; Settings → Runtime Infrastructure owns Runtime Host onboarding and inventory. Hosts are tested and inventoried through MockRuntimeHostProvider, then selected by MockScheduler for runtime placement. Host placement is an infrastructure relationship; it does not move Skills, Knowledge or Agent behavior into Runtime Templates. Automatic and manual provisioning remain Demo resource-record operations.
+
+## v0.3.3 desired configuration and drift
+
+The Runtime editor updates desired Host, Template, resources, image, network and lifecycle status through the control-plane service. The Demo does not claim provider reconciliation: observed resource fields remain independently recorded, and restart_required highlights an intended future reconcile action. User Detail shows the same User Runtime to Runtime Host association without duplicating the relationship.
+
+
+## 简体中文（当前 Runtime 生命周期）
+
+用户运行环境是未来用户级 Hermes 运行资源，可承载多个 Agent Profile，但不是运行主机，也不负责模型/Skills/知识行为。Runtime Template 仅保存基础设施字段。
+
+Demo 支持自动/手动 Provisioning 的资源记录，区分期望状态与实际状态，展示 Profiles、Effective Skills、Executions、Resources、Controls、Events。Start/Stop/Restart/Kill Switch 均会审计；Kill Switch 要求原因。期望主机、镜像、资源、网络与实际观测值可不同，restart_required 仅表示未来调和信号，不表示真实容器已变更。
